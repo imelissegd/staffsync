@@ -1,0 +1,23 @@
+# Gradle
+app/build/
+app/.gradle/
+*.class
+*.jar
+*.war
+
+# IDE - IntelliJ
+.idea/
+*.iml
+
+# IDE - VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Ignore Kotlin plugin data
+.kotlin/

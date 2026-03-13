@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Employee — Employee Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-body">
+
+<main class="page-main">
+    <div class="page-header">
+        <h1 class="page-title">Add New Employee</h1>
+        <p class="page-subtitle">Fill in the employee details below</p>
+    </div>
+
+    <!-- Success/Error Message -->
+    <div id="messageContainer"></div>
+
+    <!-- Form -->
+    <div class="form-container">
+        <form id="employeeForm">
+            <div class="form-section">
+                <p class="form-section-title">Employee Information</p>
+
+                <div class="field-group">
+                    <label for="employeeId">Employee ID <span>*</span></label>
+                    <input type="text" id="employeeId" class="field-input" 
+                           placeholder="e.g., EMP001" required>
+                    <p class="field-error" id="employeeIdError">Employee ID is required</p>
+                </div>
+
+                <div class="field-group">
+                    <label for="name">Full Name <span>*</span></label>
+                    <input type="text" id="name" class="field-input" 
+                           placeholder="e.g., Juan Dela Cruz" required>
+                    <p class="field-error" id="nameError">Name is required</p>
+                </div>
+
+                <div class="field-group">
+                    <label for="dateOfBirth">Date of Birth <span>*</span></label>
+                    <input type="date" id="dateOfBirth" class="field-input" required>
+                    <p class="field-error" id="dateOfBirthError">Date of birth is required and age must be between 18-100</p>
+                </div>
+
+                <div class="field-group">
+                    <label for="department">Department <span>*</span></label>
+                    <div class="field-select-wrap">
+                        <select id="department" class="field-select" required>
+                            <option value="">Select Department</option>
+                            <option value="IT">IT</option>
+                            <option value="HR">HR</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Engineering">Engineering</option>
+                        </select>
+                        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <p class="field-error" id="departmentError">Department is required</p>
+                </div>
+
+                <div class="field-group">
+                    <label for="salary">Salary (₱) <span>*</span></label>
+                    <input type="number" id="salary" class="field-input" 
+                           placeholder="e.g., 50000" step="0.01" min="0" required>
+                    <p class="field-error" id="salaryError">Salary must be greater than 0</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <a href="index.html" class="btn-action btn-action--secondary">Cancel</a>
+                <button type="submit" class="btn-action btn-action--primary" id="submitBtn">
+                    <span id="submitText">Add Employee</span>
+                    <div class="spinner" id="spinner" style="display: none; width: 14px; height: 14px; border-width: 2px;"></div>
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<script src="js/add-employee.js"></script>
+</body>
+</html>

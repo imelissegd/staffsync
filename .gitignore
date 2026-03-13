@@ -1,4 +1,6 @@
 # Gradle
+build/
+.gradle/
 app/build/
 app/.gradle/
 *.class

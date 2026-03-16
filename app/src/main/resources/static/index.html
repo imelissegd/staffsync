@@ -241,6 +241,43 @@
             100% { transform: translateY(0);    opacity: 1; }
         }
         .card-pop { animation: cardPop 0.2s ease; }
+
+        /* ── Pagination ── */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 1rem 0 0.25rem;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.45rem 0.85rem;
+            border-radius: 7px;
+            border: 1.5px solid var(--border);
+            background: var(--offwhite);
+            color: var(--charcoal);
+            cursor: pointer;
+            transition: border-color 0.18s, background 0.18s, color 0.18s;
+            min-width: 36px;
+        }
+        .page-btn:hover:not(:disabled) {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+        .page-btn:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+        .page-btn.active-page {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: #fff;
+            cursor: default;
+        }
     </style>
 </head>
 <body class="page-body">
@@ -411,6 +448,10 @@
                style="margin-top:.25rem;font-size:.8rem;padding:.55rem 1.1rem">Add First Employee</a>
         </div>
     </div>
+
+    <!-- ── Pagination ── -->
+    <div id="pagination" class="pagination"></div>
+
 </main>
 
 <!-- ── Delete modal ── -->

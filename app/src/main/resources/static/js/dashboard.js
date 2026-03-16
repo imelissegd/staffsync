@@ -1,9 +1,11 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            // dashboard.js
+// dashboard.js
 
 const API_BASE_URL = "http://localhost:8080/api/employees";
 
-let allEmployees    = [];
+let allEmployees      = [];
 let filteredEmployees = [];
+let currentPage       = 1;
+let employeesPerPage  = 10;
 
 // ── Auth guard ────────────────────────────────────────────────
 const currentUser = (() => {
@@ -40,7 +42,7 @@ async function loadEmployees() {
     }
 }
 
-// ── Global statistics — fetched from backend, always all employees ──
+// ── Global statistics ─────────────────────────────────────────
 async function loadGlobalStatistics() {
     try {
         const [empRes, salaryRes, ageRes] = await Promise.all([
@@ -67,7 +69,7 @@ async function loadGlobalStatistics() {
     }
 }
 
-// ── Selection statistics — computed client-side from filteredEmployees ──
+// ── Selection statistics ──────────────────────────────────────
 function computeSelectionStats() {
     const section    = document.getElementById("selectionStatsSection");
     const count      = filteredEmployees.length;
@@ -76,7 +78,6 @@ function computeSelectionStats() {
     const selAgeEl   = document.getElementById("selAvgAge");
     const infoEl     = document.getElementById("selFilterInfo");
 
-    // Reveal the section
     section.style.display = "block";
 
     if (!count) {
@@ -98,7 +99,6 @@ function computeSelectionStats() {
         `₱${avgSalary.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selAgeEl.textContent   = avgAge.toFixed(1);
 
-    // Describe active filters
     const filters = [];
     const search  = document.getElementById("searchInput")?.value.trim();
     const dept    = document.getElementById("departmentFilter")?.value;
@@ -115,7 +115,6 @@ function computeSelectionStats() {
         : `All employees · no active filters`;
     infoEl.className = isFiltered ? "sel-filter-info sel-filter-info--active" : "sel-filter-info";
 
-    // Subtle pop on the cards
     document.querySelectorAll(".stat-card--sel").forEach(card => {
         card.classList.remove("card-pop");
         void card.offsetWidth;
@@ -140,7 +139,9 @@ function applyFilters() {
     });
 
     updateResultsCount();
-    renderEmployees(filteredEmployees);
+    currentPage = 1;                        // reset to first page on every filter change
+    renderEmployees(currentPage);
+    setupPagination();
 }
 
 // ── Clear filters ─────────────────────────────────────────────
@@ -164,13 +165,13 @@ function updateResultsCount() {
         : `${total} employee${total !== 1 ? "s" : ""} total`;
 }
 
-// ── Render table ──────────────────────────────────────────────
-function renderEmployees(employees) {
+// ── Render table (current page slice only) ────────────────────
+function renderEmployees(page) {
     const tbody   = document.getElementById("employeeTableBody");
     const emptyEl = document.getElementById("emptyState");
     const tableEl = document.getElementById("employeeTable");
 
-    if (!employees.length) {
+    if (!filteredEmployees.length) {
         tableEl.style.display = "none";
         emptyEl.style.display = "flex";
         return;
@@ -179,7 +180,12 @@ function renderEmployees(employees) {
     tableEl.style.display = "table";
     emptyEl.style.display = "none";
 
-    tbody.innerHTML = employees.map(emp => {
+    // Slice just the rows for this page
+    const start      = (page - 1) * employeesPerPage;
+    const end        = start + employeesPerPage;
+    const pageItems  = filteredEmployees.slice(start, end);
+
+    tbody.innerHTML = pageItems.map(emp => {
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
         return `
         <tr>
@@ -198,6 +204,67 @@ function renderEmployees(employees) {
             </td>
         </tr>`;
     }).join("");
+}
+
+// ── Pagination ────────────────────────────────────────────────
+function setupPagination() {
+    const pagination = document.getElementById("pagination");
+    if (!pagination) return;
+    pagination.innerHTML = "";
+
+    if (!filteredEmployees.length) return;
+
+    const totalPages = Math.ceil(filteredEmployees.length / employeesPerPage);
+    if (totalPages <= 1) return;            // no controls needed for a single page
+
+    // Prev button
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "← Prev";
+    prevBtn.className   = "page-btn";
+    prevBtn.disabled    = currentPage === 1;
+    prevBtn.onclick     = () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderEmployees(currentPage);
+            setupPagination();
+        }
+    };
+    pagination.appendChild(prevBtn);
+
+    // Numbered page buttons
+    for (let i = 1; i <= totalPages; i++) {
+        const btn     = document.createElement("button");
+        btn.textContent = i;
+        btn.className   = i === currentPage ? "page-btn active-page" : "page-btn";
+        btn.onclick     = () => {
+            currentPage = i;
+            renderEmployees(currentPage);
+            setupPagination();
+        };
+        pagination.appendChild(btn);
+    }
+
+    // Next button
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next →";
+    nextBtn.className   = "page-btn";
+    nextBtn.disabled    = currentPage === totalPages;
+    nextBtn.onclick     = () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderEmployees(currentPage);
+            setupPagination();
+        }
+    };
+    pagination.appendChild(nextBtn);
+}
+
+// ── Per-page selector (optional — wire up a <select> in index.html) ──
+function changeEmployeesPerPage(val) {
+    employeesPerPage = parseInt(val);
+    currentPage      = 1;
+    renderEmployees(currentPage);
+    setupPagination();
 }
 
 // ── Delete ────────────────────────────────────────────────────

@@ -7,42 +7,154 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* Brand accent: teal instead of amber */
         .navbar-logo-accent { color: var(--teal); }
-        .auth-brand .logo span { color: var(--teal); }
 
-        /* Stats cards */
-        .stats-grid {
+        /* ── Shared stats row ── */
+        .stats-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
-            margin-bottom: 1.75rem;
         }
-        @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr; } }
 
+        .stats-section { margin-bottom: 0.5rem; }
+
+        .stats-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.55rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .stats-section-label {
+            font-size: 0.67rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .section-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .section-dot--global { background: var(--muted); }
+        .section-dot--sel    { background: var(--teal); }
+
+        /* ── Stat card — shared base ── */
         .stat-card {
             background: var(--surface);
             border: 1.5px solid var(--border);
             border-radius: 12px;
-            padding: 1.25rem 1.4rem;
+            padding: 1.1rem 1.3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
         }
+        /* Selection variant */
+        .stat-card--sel {
+            border-color: rgba(0,150,136,0.3);
+            background: rgba(0,150,136,0.025);
+        }
+
         .stat-label {
-            font-size: 0.68rem;
+            font-size: 0.64rem;
             font-weight: 600;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             color: var(--muted);
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.15rem;
         }
         .stat-value {
             font-family: 'DM Serif Display', serif;
-            font-size: 1.8rem;
+            font-size: 1.75rem;
             font-weight: 400;
             color: var(--charcoal);
-            line-height: 1;
+            line-height: 1.1;
+            min-height: 2rem;
+        }
+        .stat-value--salary { font-size: 1.35rem; }
+        .stat-value--sel    { color: var(--teal); }
+        /* Uncomputed placeholder style */
+        .stat-value--empty  { color: var(--border); }
+
+        /* ── Divider between rows ── */
+        .stats-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 0.9rem 0;
+        }
+        .stats-divider-line  { flex: 1; height: 1px; background: var(--border); }
+        .stats-divider-text  {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--border);
+            white-space: nowrap;
         }
 
-        /* Filter bar */
+        /* ── Calculate button ── */
+        .btn-calc {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.74rem;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 7px;
+            border: 1.5px solid rgba(0,150,136,0.4);
+            background: rgba(0,150,136,0.07);
+            color: var(--teal);
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s;
+            white-space: nowrap;
+        }
+        .btn-calc:hover {
+            background: rgba(0,150,136,0.15);
+            border-color: var(--teal);
+        }
+        .btn-calc svg { width: 12px; height: 12px; }
+
+        /* Filter badge + info */
+        .filter-badge {
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 20px;
+            background: var(--offwhite);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+        .filter-badge--active {
+            background: rgba(0,150,136,0.1);
+            color: var(--teal);
+            border-color: rgba(0,150,136,0.3);
+        }
+        .sel-filter-info {
+            font-size: 0.7rem;
+            color: var(--muted);
+            font-style: italic;
+        }
+        .sel-filter-info--active {
+            color: var(--teal);
+            font-style: normal;
+            font-weight: 500;
+        }
+        .sel-header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+        }
+
+        /* ── Filter bar ── */
         .filter-bar {
             display: flex;
             align-items: center;
@@ -50,14 +162,7 @@
             flex-wrap: wrap;
             margin-bottom: 0.75rem;
         }
-
-        /* Age range inputs */
-        .age-range-wrap {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            flex-shrink: 0;
-        }
+        .age-range-wrap { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
         .age-range-input {
             width: 72px;
             padding: 0.62rem 0.75rem;
@@ -73,17 +178,9 @@
         }
         .age-range-input::-webkit-inner-spin-button,
         .age-range-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-        .age-range-input:focus {
-            border-color: var(--teal);
-            box-shadow: 0 0 0 3px var(--teal-glow);
-        }
-        .age-range-label {
-            font-size: 0.75rem;
-            color: var(--muted);
-            white-space: nowrap;
-        }
+        .age-range-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
+        .age-range-label { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
 
-        /* Clear filters btn */
         .btn-clear {
             display: inline-flex;
             align-items: center;
@@ -103,14 +200,9 @@
         }
         .btn-clear:hover { border-color: var(--teal); color: var(--teal); }
 
-        /* Results count */
-        .results-count {
-            font-size: 0.78rem;
-            color: var(--muted);
-            margin-bottom: 0.6rem;
-        }
+        .results-count { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem; }
 
-        /* Department badge */
+        /* ── Dept badge ── */
         .dept-badge {
             display: inline-block;
             font-size: 0.68rem;
@@ -123,32 +215,32 @@
             letter-spacing: 0.04em;
         }
 
-        /* Table container */
+        /* ── Table ── */
         .table-container {
             background: var(--surface);
             border: 1.5px solid var(--border);
             border-radius: 12px;
             overflow: hidden;
         }
-
-        /* Secondary btn */
         .btn-action--secondary {
             background: var(--offwhite);
             color: var(--charcoal);
             border: 1.5px solid var(--border);
         }
-        .btn-action--secondary:hover {
-            border-color: var(--teal);
-            color: var(--teal);
-        }
+        .btn-action--secondary:hover { border-color: var(--teal); color: var(--teal); }
         .btn-action--danger {
             background: transparent;
             color: var(--error);
             border: 1.5px solid var(--error);
         }
-        .btn-action--danger:hover {
-            background: rgba(192,57,43,0.07);
+        .btn-action--danger:hover { background: rgba(192,57,43,0.07); }
+
+        /* ── Pop animation on calculate ── */
+        @keyframes cardPop {
+            0%   { transform: translateY(-3px); opacity: 0.7; }
+            100% { transform: translateY(0);    opacity: 1; }
         }
+        .card-pop { animation: cardPop 0.2s ease; }
     </style>
 </head>
 <body class="page-body">
@@ -156,7 +248,8 @@
 <!-- Navbar injected by navbar.js -->
 
 <main class="page-main">
-    <!-- Header -->
+
+    <!-- ── Page header ── -->
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
         <div>
             <h1 class="page-title">Employee Dashboard</h1>
@@ -171,25 +264,63 @@
         </a>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <p class="stat-label">Total Employees</p>
-            <p class="stat-value" id="totalEmployees">—</p>
+    <!-- ══════════════════════════════════
+         GLOBAL STATS — all employees
+         ══════════════════════════════════ -->
+    <div class="stats-section">
+        <div class="stats-section-header">
+            <span class="stats-section-label">
+                <span class="section-dot section-dot--global"></span>
+                All Employees
+            </span>
         </div>
-        <div class="stat-card">
-            <p class="stat-label">Average Salary</p>
-            <p class="stat-value" id="avgSalary" style="font-size:1.35rem">—</p>
-        </div>
-        <div class="stat-card">
-            <p class="stat-label">Average Age</p>
-            <p class="stat-value" id="avgAge">—</p>
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-label">No. of Employees</span>
+                <p class="stat-value" id="totalEmployees">—</p>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Average Salary</span>
+                <p class="stat-value stat-value--salary" id="avgSalary">—</p>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Average Age</span>
+                <p class="stat-value" id="avgAge">—</p>
+            </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="filter-bar">
-        <!-- Search -->
+    <!-- ══════════════════════════════════
+         SELECTION STATS — hidden until Calculate is clicked
+         ══════════════════════════════════ -->
+    <div id="selectionStatsSection" style="display:none;margin-bottom:0.5rem">
+        <div class="stats-section-header" style="margin-bottom:0.55rem">
+            <div style="display:flex;flex-direction:column;gap:0.2rem">
+                <span class="stats-section-label">
+                    <span class="section-dot section-dot--sel"></span>
+                    Current View
+                </span>
+                <span class="sel-filter-info" id="selFilterInfo"></span>
+            </div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card stat-card--sel">
+                <span class="stat-label">No. of Employees</span>
+                <p class="stat-value stat-value--sel" id="selCount">—</p>
+            </div>
+            <div class="stat-card stat-card--sel">
+                <span class="stat-label">Average Salary</span>
+                <p class="stat-value stat-value--salary stat-value--sel" id="selAvgSalary">—</p>
+            </div>
+            <div class="stat-card stat-card--sel">
+                <span class="stat-label">Average Age</span>
+                <p class="stat-value stat-value--sel" id="selAvgAge">—</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filters ── -->
+    <div class="filter-bar" style="margin-top:1.25rem">
         <div class="search-wrap" style="flex:1;min-width:200px">
             <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -198,7 +329,6 @@
                    placeholder="Search by name or employee ID…" autocomplete="off">
         </div>
 
-        <!-- Department filter -->
         <div class="category-wrap">
             <select id="departmentFilter" class="category-select">
                 <option value="">All Departments</option>
@@ -215,17 +345,13 @@
             </svg>
         </div>
 
-        <!-- Age range filter -->
         <div class="age-range-wrap">
             <span class="age-range-label">Age</span>
-            <input type="number" id="ageMinInput" class="age-range-input"
-                   placeholder="Min" min="0" max="120">
+            <input type="number" id="ageMinInput" class="age-range-input" placeholder="Min" min="0" max="120">
             <span class="age-range-label">–</span>
-            <input type="number" id="ageMaxInput" class="age-range-input"
-                   placeholder="Max" min="0" max="120">
+            <input type="number" id="ageMaxInput" class="age-range-input" placeholder="Max" min="0" max="120">
         </div>
 
-        <!-- Clear button -->
         <button class="btn-clear" id="clearFiltersBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px">
@@ -233,12 +359,28 @@
             </svg>
             Clear
         </button>
+
+        <!-- Separator + Calculate Stats button — rightmost -->
+        <div style="width:1px;height:24px;background:var(--border);flex-shrink:0;align-self:center"></div>
+        <button class="btn-calc" id="calcSelBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <line x1="8" y1="6" x2="16" y2="6"/>
+                <line x1="8" y1="10" x2="10" y2="10"/>
+                <line x1="14" y1="10" x2="16" y2="10"/>
+                <line x1="8" y1="14" x2="10" y2="14"/>
+                <line x1="14" y1="14" x2="16" y2="14"/>
+                <line x1="8" y1="18" x2="10" y2="18"/>
+                <line x1="14" y1="18" x2="16" y2="18"/>
+            </svg>
+            Calculate Stats
+        </button>
     </div>
 
-    <!-- Results count -->
     <p class="results-count" id="resultsCount"></p>
 
-    <!-- Table -->
+    <!-- ── Employee table ── -->
     <div class="table-container">
         <div style="overflow-x:auto">
             <table id="employeeTable" style="width:100%;border-collapse:collapse;display:none">
@@ -257,7 +399,6 @@
             </table>
         </div>
 
-        <!-- Empty state -->
         <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;padding:4rem 2rem;color:var(--muted)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
                  style="width:40px;height:40px;stroke:var(--border)">
@@ -272,7 +413,7 @@
     </div>
 </main>
 
-<!-- Delete confirmation modal -->
+<!-- ── Delete modal ── -->
 <div id="deleteModal"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center">
     <div style="background:var(--surface);border-radius:14px;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
@@ -291,8 +432,7 @@
         <div style="display:flex;gap:.75rem;justify-content:center">
             <button onclick="closeDeleteModal()" class="btn-action btn-action--secondary"
                     style="flex:1;border:1.5px solid var(--border)">Cancel</button>
-            <button id="confirmDeleteBtn" class="btn-action btn-action--danger"
-                    style="flex:1">Delete</button>
+            <button id="confirmDeleteBtn" class="btn-action btn-action--danger" style="flex:1">Delete</button>
         </div>
     </div>
 </div>

@@ -267,7 +267,60 @@ function changeEmployeesPerPage(val) {
     setupPagination();
 }
 
-// ── Delete ────────────────────────────────────────────────────
+// ── Sorting ───────────────────────────────────────────────────
+let sortKey = null;
+let sortDir = "asc";
+
+function sortTable(key) {
+    if (sortKey === key) {
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+    } else {
+        sortKey = key;
+        sortDir = "asc";
+    }
+
+    filteredEmployees.sort((a, b) => {
+        let valA, valB;
+
+        if (key === "age") {
+            valA = a.age ?? calculateAge(a.dateOfBirth);
+            valB = b.age ?? calculateAge(b.dateOfBirth);
+        } else if (key === "salary") {
+            valA = a.salary;
+            valB = b.salary;
+        } else if (key === "dateOfBirth") {
+            valA = new Date(a.dateOfBirth);
+            valB = new Date(b.dateOfBirth);
+        } else {
+            valA = (a[key] ?? "").toString().toLowerCase();
+            valB = (b[key] ?? "").toString().toLowerCase();
+        }
+
+        if (valA < valB) return sortDir === "asc" ? -1 : 1;
+        if (valA > valB) return sortDir === "asc" ?  1 : -1;
+        return 0;
+    });
+
+    updateSortArrows();
+    currentPage = 1;
+    renderEmployees(currentPage);
+    setupPagination();
+}
+
+function updateSortArrows() {
+    const keys = ["employeeId", "name", "dateOfBirth", "age", "department", "salary"];
+    keys.forEach(k => {
+        const el = document.getElementById(`sort-${k}`);
+        if (!el) return;
+        el.className   = "sort-arrow";
+        el.textContent = "↕";
+        if (k === sortKey) {
+            el.classList.add(sortDir);
+            el.textContent = sortDir === "asc" ? "↑" : "↓";
+        }
+    });
+}
+
 function openDeleteModal(id, name) {
     document.getElementById("deleteEmployeeName").textContent = name;
     document.getElementById("deleteModal").style.display      = "flex";

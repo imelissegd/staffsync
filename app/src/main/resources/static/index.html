@@ -235,7 +235,20 @@
         }
         .btn-action--danger:hover { background: rgba(192,57,43,0.07); }
 
-        /* ── Pop animation on calculate ── */
+        /* ── Report buttons ── */
+        /* ── Sortable column headers ── */
+        .th-sort:hover { color: var(--teal) !important; }
+        .sort-arrow {
+            display: inline-block;
+            margin-left: 3px;
+            opacity: 0.35;
+            font-size: 0.7rem;
+            transition: opacity 0.15s;
+        }
+        .th-sort:hover .sort-arrow { opacity: 0.7; }
+        .sort-arrow.asc  { opacity: 1; color: var(--teal); }
+        .sort-arrow.desc { opacity: 1; color: var(--teal); }
+
         @keyframes cardPop {
             0%   { transform: translateY(-3px); opacity: 0.7; }
             100% { transform: translateY(0);    opacity: 1; }
@@ -423,12 +436,12 @@
             <table id="employeeTable" style="width:100%;border-collapse:collapse;display:none">
                 <thead>
                 <tr style="background:var(--offwhite);border-bottom:1.5px solid var(--border)">
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;white-space:nowrap">Emp ID</th>
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left">Name</th>
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;white-space:nowrap">Date of Birth</th>
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left">Age</th>
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left">Department</th>
-                    <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left">Salary</th>
+                    <th class="th-sort" onclick="sortTable('employeeId')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;white-space:nowrap;cursor:pointer;user-select:none">Emp ID <span class="sort-arrow" id="sort-employeeId">↕</span></th>
+                    <th class="th-sort" onclick="sortTable('name')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer;user-select:none">Name <span class="sort-arrow" id="sort-name">↕</span></th>
+                    <th class="th-sort" onclick="sortTable('dateOfBirth')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;white-space:nowrap;cursor:pointer;user-select:none">Date of Birth <span class="sort-arrow" id="sort-dateOfBirth">↕</span></th>
+                    <th class="th-sort" onclick="sortTable('age')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer;user-select:none">Age <span class="sort-arrow" id="sort-age">↕</span></th>
+                    <th class="th-sort" onclick="sortTable('department')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer;user-select:none">Department <span class="sort-arrow" id="sort-department">↕</span></th>
+                    <th class="th-sort" onclick="sortTable('salary')" style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer;user-select:none">Salary <span class="sort-arrow" id="sort-salary">↕</span></th>
                     <th style="padding:.75rem 1rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left">Actions</th>
                 </tr>
                 </thead>

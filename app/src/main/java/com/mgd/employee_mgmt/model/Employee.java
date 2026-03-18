@@ -22,7 +22,7 @@ public class Employee extends Person {
      * department_id FK is stored in the employees table.
      * LAZY fetch to avoid N+1; JSON serialization ignores hibernate proxy fields.
      */
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Department department;

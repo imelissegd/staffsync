@@ -12,6 +12,12 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
     setLoading(btn, true, "Registering…");
     clearError();
 
+    if (password.length < 6) {
+        showBanner("Password must be at least 6 characters.", "error");
+        setLoading(btn, false, "Sign Up");
+        return;
+    }
+
     try {
         const res = await fetch(`${API}/auth/register`, {
             method: "POST",

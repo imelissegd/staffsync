@@ -49,6 +49,14 @@ public class EmployeeService {
 
         validateEmployee(employee);
 
+        // If the employeeId is being changed, ensure the new one is not already taken
+        if (!existing.getEmployeeId().equals(employee.getEmployeeId()) &&
+                employeeRepository.existsByEmployeeId(employee.getEmployeeId())) {
+            throw new IllegalArgumentException(
+                    "Employee with ID " + employee.getEmployeeId() + " already exists");
+        }
+
+        existing.setEmployeeId(employee.getEmployeeId());
         existing.setName(employee.getName());
         existing.setDateOfBirth(employee.getDateOfBirth());
         existing.setDepartment(employee.getDepartment());
@@ -102,12 +110,8 @@ public class EmployeeService {
     }
 
     public double calculateAverageSalary() {
-        List<Employee> employees = employeeRepository.findAll();
-        if (employees.isEmpty()) return 0.0;
-        return employees.stream()
-                .mapToDouble(Employee::getSalary)
-                .average()
-                .orElse(0.0);
+        Double avg = employeeRepository.calculateAverageSalary();
+        return avg != null ? avg : 0.0;
     }
 
     public double calculateAverageAge() {

@@ -290,16 +290,16 @@ class EmployeeServiceTest {
 
     @Test
     void calculateAverageSalary_returnsCorrectAverage() {
-        Employee emp2 = new Employee("EMP002", "Jane",
-                LocalDate.of(1985, 1, 1), sampleDept, 85000.0);
-        when(employeeRepository.findAll()).thenReturn(Arrays.asList(sampleEmployee, emp2));
+        // Service now delegates to the JPQL @Query method, not findAll()
+        when(employeeRepository.calculateAverageSalary()).thenReturn(80000.0);
 
         assertEquals(80000.0, employeeService.calculateAverageSalary(), 0.01);
     }
 
     @Test
     void calculateAverageSalary_returnsZeroWhenEmpty() {
-        when(employeeRepository.findAll()).thenReturn(Collections.emptyList());
+        // JPA returns null from AVG when there are no rows; service maps null → 0.0
+        when(employeeRepository.calculateAverageSalary()).thenReturn(null);
 
         assertEquals(0.0, employeeService.calculateAverageSalary());
     }

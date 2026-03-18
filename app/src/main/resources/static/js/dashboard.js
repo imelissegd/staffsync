@@ -106,14 +106,20 @@ function computeSelectionStats() {
     const ageMax  = document.getElementById("ageMaxInput")?.value;
     if (search) filters.push(`"${search}"`);
     if (dept)   filters.push(dept);
-    if (ageMin) filters.push(`age ≥ ${ageMin}`);
-    if (ageMax) filters.push(`age ≤ ${ageMax}`);
+    if (ageMin) filters.push(`Age ≥ ${ageMin}`);
+    if (ageMax) filters.push(`Age ≤ ${ageMax}`);
 
     const isFiltered = filteredEmployees.length < allEmployees.length;
-    infoEl.textContent = isFiltered
-        ? `Filtered: ${filters.join(", ")}`
-        : `All employees · no active filters`;
-    infoEl.className = isFiltered ? "sel-filter-info sel-filter-info--active" : "sel-filter-info";
+
+    if (isFiltered && filters.length) {
+        infoEl.className = "sel-filter-info sel-filter-info--active";
+        infoEl.innerHTML = filters
+            .map(f => `<span class="sel-filter-pill">${f}</span>`)
+            .join("");
+    } else {
+        infoEl.className = "sel-filter-info";
+        infoEl.innerHTML = `<span style="font-style:italic">All employees &middot; no active filters</span>`;
+    }
 
     document.querySelectorAll(".stat-card--sel").forEach(card => {
         card.classList.remove("card-pop");
@@ -197,6 +203,7 @@ function renderEmployees(page) {
             <td>₱${emp.salary.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
             <td>
                 <div style="display:flex;gap:0.4rem">
+                    <button onclick="openViewModal(${emp.id})" class="tbl-btn tbl-btn--view">View</button>
                     <a href="edit-employee.html?id=${emp.id}" class="tbl-btn tbl-btn--ghost">Edit</a>
                     <button onclick="openDeleteModal(${emp.id}, '${escapeHtml(emp.name)}')"
                             class="tbl-btn tbl-btn--danger">Delete</button>
@@ -319,6 +326,61 @@ function updateSortArrows() {
             el.textContent = sortDir === "asc" ? "↑" : "↓";
         }
     });
+}
+
+// ── View modal ────────────────────────────────────────────────
+async function openViewModal(id) {
+    const modal = document.getElementById("viewModal");
+    const body  = document.getElementById("viewModalBody");
+
+    // Show modal with loading state
+    body.innerHTML = `<p style="text-align:center;color:var(--muted);padding:2rem 0">Loading…</p>`;
+    modal.style.display = "flex";
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch employee");
+        const emp = await res.json();
+        const age = emp.age ?? calculateAge(emp.dateOfBirth);
+
+        body.innerHTML = `
+            <div class="view-field">
+                <span class="view-label">Employee ID</span>
+                <span class="view-value">${emp.employeeId}</span>
+            </div>
+            <div class="view-field">
+                <span class="view-label">Full Name</span>
+                <span class="view-value">${emp.name}</span>
+            </div>
+            <div class="view-field">
+                <span class="view-label">Date of Birth</span>
+                <span class="view-value">${formatDate(emp.dateOfBirth)}</span>
+            </div>
+            <div class="view-field">
+                <span class="view-label">Age</span>
+                <span class="view-value">${age} years old</span>
+            </div>
+            <div class="view-field">
+                <span class="view-label">Department</span>
+                <span class="view-value">
+                    <span class="dept-badge dept-badge--${emp.department.toLowerCase()}">${emp.department}</span>
+                </span>
+            </div>
+            <div class="view-field">
+                <span class="view-label">Salary</span>
+                <span class="view-value view-value--salary">₱${emp.salary.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div class="view-modal-actions">
+                <a href="edit-employee.html?id=${emp.id}" class="btn-action btn-action--primary" style="font-size:0.82rem;padding:0.5rem 1.1rem">Edit Employee</a>
+            </div>`;
+    } catch (err) {
+        console.error(err);
+        body.innerHTML = `<p style="text-align:center;color:var(--error);padding:2rem 0">Failed to load employee data.</p>`;
+    }
+}
+
+function closeViewModal() {
+    document.getElementById("viewModal").style.display = "none";
 }
 
 function openDeleteModal(id, name) {

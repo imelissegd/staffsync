@@ -139,14 +139,29 @@
             border-color: rgba(0,150,136,0.3);
         }
         .sel-filter-info {
-            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            font-size: 0.82rem;
             color: var(--muted);
             font-style: italic;
         }
         .sel-filter-info--active {
-            color: var(--teal);
             font-style: normal;
-            font-weight: 500;
+        }
+        .sel-filter-pill {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-style: normal;
+            padding: 2px 10px;
+            border-radius: 20px;
+            background: rgba(0,150,136,0.1);
+            border: 1px solid rgba(0,150,136,0.35);
+            color: var(--teal);
+            white-space: nowrap;
         }
         .sel-header-right {
             display: flex;
@@ -249,6 +264,17 @@
         .sort-arrow.asc  { opacity: 1; color: var(--teal); }
         .sort-arrow.desc { opacity: 1; color: var(--teal); }
 
+        /* ── Table body row padding ── */
+        #employeeTableBody tr { border-bottom: 1px solid var(--border); }
+        #employeeTableBody tr:last-child { border-bottom: none; }
+        #employeeTableBody tr:hover { background: var(--offwhite); }
+        #employeeTableBody td {
+            padding: 1rem 1rem;
+            vertical-align: middle;
+            font-size: 0.9rem;
+            color: var(--charcoal);
+        }
+
         @keyframes cardPop {
             0%   { transform: translateY(-3px); opacity: 0.7; }
             100% { transform: translateY(0);    opacity: 1; }
@@ -290,6 +316,72 @@
             border-color: var(--teal);
             color: #fff;
             cursor: default;
+        }
+
+        /* ── Table action buttons ── */
+        .tbl-btn {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1.5px solid var(--border);
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+        .tbl-btn--view {
+            background: rgba(0,150,136,0.06);
+            color: var(--teal);
+            border-color: rgba(0,150,136,0.35);
+        }
+        .tbl-btn--view:hover { background: rgba(0,150,136,0.14); border-color: var(--teal); }
+        .tbl-btn--ghost {
+            background: var(--offwhite);
+            color: var(--charcoal);
+        }
+        .tbl-btn--ghost:hover { border-color: var(--teal); color: var(--teal); }
+        .tbl-btn--danger {
+            background: transparent;
+            color: var(--error);
+            border-color: var(--error);
+        }
+        .tbl-btn--danger:hover { background: rgba(192,57,43,0.07); }
+
+        /* ── View modal fields ── */
+        .view-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--border);
+            gap: 1rem;
+        }
+        .view-field:last-of-type { border-bottom: none; }
+        .view-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+        .view-value {
+            font-size: 0.9rem;
+            color: var(--charcoal);
+            text-align: right;
+        }
+        .view-value--salary {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.1rem;
+            color: var(--charcoal);
+        }
+        .view-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1.25rem;
         }
     </style>
 </head>
@@ -345,8 +437,8 @@
          ══════════════════════════════════ -->
     <div id="selectionStatsSection" style="display:none;margin-bottom:0.5rem">
         <div class="stats-section-header" style="margin-bottom:0.55rem">
-            <div style="display:flex;flex-direction:column;gap:0.2rem">
-                <span class="stats-section-label">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.6rem;">
+                <span class="stats-section-label" style="white-space:nowrap">
                     <span class="section-dot section-dot--sel"></span>
                     Current View
                 </span>
@@ -428,7 +520,20 @@
         </button>
     </div>
 
-    <p class="results-count" id="resultsCount"></p>
+    <!-- ── Toolbar: results count (left) + per-page selector (right) ── -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;margin-bottom:0.75rem;gap:0.65rem;">
+        <p class="results-count" id="resultsCount" style="margin:0"></p>
+        <div class="category-wrap">
+            <select class="category-select" onchange="changeEmployeesPerPage(this.value)">
+                <option value="10" selected>10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+            </select>
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </div>
+    </div>
 
     <!-- ── Employee table ── -->
     <div class="table-container">
@@ -466,6 +571,19 @@
     <div id="pagination" class="pagination"></div>
 
 </main>
+
+<!-- ── View modal ── -->
+<div id="viewModal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border-radius:14px;padding:2rem;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+            <h2 style="font-family:'DM Serif Display',serif;font-size:1.25rem;color:var(--charcoal)">Employee Details</h2>
+            <button onclick="closeViewModal()"
+                    style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.3rem;line-height:1;padding:2px 6px">&times;</button>
+        </div>
+        <div id="viewModalBody"></div>
+    </div>
+</div>
 
 <!-- ── Delete modal ── -->
 <div id="deleteModal"

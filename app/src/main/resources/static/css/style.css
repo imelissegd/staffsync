@@ -1,5 +1,5 @@
 /* ============================================================
-   Booktopia — Global Styles
+   StaffSync — Global Styles
    Fonts: DM Serif Display + DM Sans (load via Google Fonts)
    ============================================================ */
 
@@ -64,7 +64,7 @@ html, body {
   margin-bottom: 0.2rem;
 }
 
-.auth-brand .logo span { color: var(--amber); }
+.auth-brand .logo span { color: var(--teal); }
 
 .auth-brand .tagline {
   font-size: 0.7rem;

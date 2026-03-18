@@ -1,9 +1,10 @@
 package com.mgd.employee_mgmt.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import com.mgd.employee_mgmt.model.User;
-import com.mgd.employee_mgmt.repository.UserRepository;
 import com.mgd.employee_mgmt.security.SecurityConfig;
+import com.mgd.employee_mgmt.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,15 +12,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
-import java.util.Optional;
 
 import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -31,10 +29,7 @@ class AuthControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private UserRepository userRepository;
-
-    @MockBean
-    private PasswordEncoder passwordEncoder;
+    private UserService userService;
 
     private ObjectMapper objectMapper;
 
@@ -47,9 +42,7 @@ class AuthControllerTest {
 
     @Test
     void register_success() throws Exception {
-        when(userRepository.existsByUsername("alice")).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
-        when(userRepository.save(any(User.class))).thenReturn(new User());
+        doNothing().when(userService).register("alice", "secret");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -61,6 +54,9 @@ class AuthControllerTest {
 
     @Test
     void register_failsWhenUsernameBlank() throws Exception {
+        doThrow(new IllegalArgumentException("Username is required."))
+                .when(userService).register("  ", "secret");
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("username", "  ", "password", "secret"))))
@@ -71,6 +67,9 @@ class AuthControllerTest {
 
     @Test
     void register_failsWhenPasswordBlank() throws Exception {
+        doThrow(new IllegalArgumentException("Password is required."))
+                .when(userService).register("alice", "");
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", ""))))
@@ -81,7 +80,8 @@ class AuthControllerTest {
 
     @Test
     void register_failsWhenUsernameTaken() throws Exception {
-        when(userRepository.existsByUsername("alice")).thenReturn(true);
+        doThrow(new IllegalArgumentException("Username already taken. Please choose another."))
+                .when(userService).register("alice", "secret");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,6 +93,9 @@ class AuthControllerTest {
 
     @Test
     void register_failsWhenUsernameMissing() throws Exception {
+        doThrow(new IllegalArgumentException("Username is required."))
+                .when(userService).register(null, "secret");
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("password", "secret"))))
@@ -105,12 +108,8 @@ class AuthControllerTest {
 
     @Test
     void login_success() throws Exception {
-        User user = new User();
-        user.setUsername("alice");
-        user.setPassword("hashed");
-        user.setRole("ROLE_USER");
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("secret", "hashed")).thenReturn(true);
+        User user = new User("alice", "hashed", "ROLE_USER");
+        when(userService.login("alice", "secret")).thenReturn(user);
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -123,7 +122,8 @@ class AuthControllerTest {
 
     @Test
     void login_failsWhenUserNotFound() throws Exception {
-        when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+        when(userService.login("unknown", "pass"))
+                .thenThrow(new InvalidCredentialsException("Invalid username or password."));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -135,12 +135,8 @@ class AuthControllerTest {
 
     @Test
     void login_failsWhenPasswordWrong() throws Exception {
-        User user = new User();
-        user.setUsername("alice");
-        user.setPassword("hashed");
-        user.setRole("ROLE_USER");
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
+        when(userService.login("alice", "wrong"))
+                .thenThrow(new InvalidCredentialsException("Invalid username or password."));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

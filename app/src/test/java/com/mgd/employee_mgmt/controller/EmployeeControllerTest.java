@@ -17,9 +17,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -69,14 +69,15 @@ class EmployeeControllerTest {
     }
 
     @Test
-    void createEmployee_throwsWhenServiceThrows() throws Exception {
+    void createEmployee_returns400WhenDuplicate() throws Exception {
         when(employeeService.saveEmployee(any(Employee.class)))
-                .thenThrow(new RuntimeException("Employee with ID EMP001 already exists"));
+                .thenThrow(new IllegalArgumentException("Employee with ID EMP001 already exists"));
 
-        assertThrows(Exception.class, () ->
-                mockMvc.perform(post("/api/employees")
+        mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sampleEmployee))));
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("already exists")));
     }
 
     // ─── GET /api/employees ───────────────────────────────────────────────────
@@ -112,12 +113,13 @@ class EmployeeControllerTest {
     }
 
     @Test
-    void getEmployeeById_throwsWhenNotFound() throws Exception {
+    void getEmployeeById_returns404WhenNotFound() throws Exception {
         when(employeeService.getEmployeeById(99L))
-                .thenThrow(new RuntimeException("Employee not found with id: 99"));
+                .thenThrow(new NoSuchElementException("Employee not found with id: 99"));
 
-        assertThrows(Exception.class, () ->
-                mockMvc.perform(get("/api/employees/99")));
+        mockMvc.perform(get("/api/employees/99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("not found")));
     }
 
     // ─── GET /api/employees/employee-id/{employeeId} ─────────────────────────
@@ -145,14 +147,15 @@ class EmployeeControllerTest {
     }
 
     @Test
-    void updateEmployee_throwsWhenNotFound() throws Exception {
+    void updateEmployee_returns404WhenNotFound() throws Exception {
         when(employeeService.updateEmployee(eq(99L), any(Employee.class)))
-                .thenThrow(new RuntimeException("Employee not found with id: 99"));
+                .thenThrow(new NoSuchElementException("Employee not found with id: 99"));
 
-        assertThrows(Exception.class, () ->
-                mockMvc.perform(put("/api/employees/99")
+        mockMvc.perform(put("/api/employees/99")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sampleEmployee))));
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("not found")));
     }
 
     // ─── DELETE /api/employees/{id} ───────────────────────────────────────────
@@ -167,12 +170,13 @@ class EmployeeControllerTest {
     }
 
     @Test
-    void deleteEmployee_throwsWhenNotFound() throws Exception {
-        doThrow(new RuntimeException("Employee not found with id: 99"))
+    void deleteEmployee_returns404WhenNotFound() throws Exception {
+        doThrow(new NoSuchElementException("Employee not found with id: 99"))
                 .when(employeeService).deleteEmployee(99L);
 
-        assertThrows(Exception.class, () ->
-                mockMvc.perform(delete("/api/employees/99")));
+        mockMvc.perform(delete("/api/employees/99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("not found")));
     }
 
     // ─── GET /api/employees/search ────────────────────────────────────────────

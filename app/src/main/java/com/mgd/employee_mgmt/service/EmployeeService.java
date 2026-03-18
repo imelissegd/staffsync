@@ -1,6 +1,8 @@
 package com.mgd.employee_mgmt.service;
 
+import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
+import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,18 +14,21 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * Service class with business logic
- * Demonstrates use of Collections (ArrayList, List)
+ * Service class with business logic.
+ * Demonstrates use of Collections (ArrayList, List).
  */
 @Service
 @Transactional
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Autowired
-    public EmployeeService(EmployeeRepository employeeRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository,
+                           DepartmentRepository departmentRepository) {
         this.employeeRepository = employeeRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     public Employee saveEmployee(Employee employee) {
@@ -38,18 +43,18 @@ public class EmployeeService {
     }
 
     public Employee updateEmployee(Long id, Employee employee) {
-        Employee existingEmployee = employeeRepository.findById(id)
+        Employee existing = employeeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException(
                         "Employee not found with id: " + id));
 
         validateEmployee(employee);
 
-        existingEmployee.setName(employee.getName());
-        existingEmployee.setDateOfBirth(employee.getDateOfBirth());
-        existingEmployee.setDepartment(employee.getDepartment());
-        existingEmployee.setSalary(employee.getSalary());
+        existing.setName(employee.getName());
+        existing.setDateOfBirth(employee.getDateOfBirth());
+        existing.setDepartment(employee.getDepartment());
+        existing.setSalary(employee.getSalary());
 
-        return employeeRepository.save(existingEmployee);
+        return employeeRepository.save(existing);
     }
 
     public void deleteEmployee(Long id) {
@@ -82,20 +87,23 @@ public class EmployeeService {
         return employeeRepository.findByNameContainingIgnoreCase(name);
     }
 
-    public List<Employee> getEmployeesByDepartment(String department) {
-        if (department == null || department.trim().isEmpty()) {
+    /**
+     * Returns employees by department name.
+     * Looks up the Department entity first, then delegates to the repository.
+     */
+    public List<Employee> getEmployeesByDepartment(String departmentName) {
+        if (departmentName == null || departmentName.trim().isEmpty()) {
             throw new IllegalArgumentException("Department cannot be empty");
         }
-        return employeeRepository.findByDepartment(department);
+        Department dept = departmentRepository.findByName(departmentName)
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Department not found with name: " + departmentName));
+        return employeeRepository.findByDepartment(dept);
     }
 
     public double calculateAverageSalary() {
         List<Employee> employees = employeeRepository.findAll();
-
-        if (employees.isEmpty()) {
-            return 0.0;
-        }
-
+        if (employees.isEmpty()) return 0.0;
         return employees.stream()
                 .mapToDouble(Employee::getSalary)
                 .average()
@@ -104,11 +112,7 @@ public class EmployeeService {
 
     public double calculateAverageAge() {
         List<Employee> employees = employeeRepository.findAll();
-
-        if (employees.isEmpty()) {
-            return 0.0;
-        }
-
+        if (employees.isEmpty()) return 0.0;
         return employees.stream()
                 .mapToInt(Employee::getAge)
                 .average()
@@ -125,7 +129,8 @@ public class EmployeeService {
         return employees;
     }
 
-    // Private validation method
+    // ── private validation ───────────────────────────────────────────────────
+
     private void validateEmployee(Employee employee) {
         if (employee.getEmployeeId() == null || employee.getEmployeeId().trim().isEmpty())
             throw new IllegalArgumentException("Employee ID is required");
@@ -140,8 +145,14 @@ public class EmployeeService {
         if (age < 18 || age > 100)
             throw new IllegalArgumentException("Employee age must be between 18 and 100");
 
-        if (employee.getDepartment() == null || employee.getDepartment().trim().isEmpty())
+        if (employee.getDepartment() == null)
             throw new IllegalArgumentException("Department is required");
+
+        // Verify the referenced department actually exists in the DB
+        if (!departmentRepository.existsById(employee.getDepartment().getId())) {
+            throw new IllegalArgumentException(
+                    "Department with id " + employee.getDepartment().getId() + " does not exist");
+        }
 
         if (employee.getSalary() == null || employee.getSalary() <= 0)
             throw new IllegalArgumentException("Salary must be greater than 0");

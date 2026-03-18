@@ -139,14 +139,29 @@
             border-color: rgba(0,150,136,0.3);
         }
         .sel-filter-info {
-            font-size: 0.7rem;
-            color: var(--muted);
-            font-style: italic;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem;
         }
-        .sel-filter-info--active {
+        .sel-filter-badge {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+            border: 1px solid var(--border);
+            background: var(--offwhite);
+            color: var(--muted);
+        }
+        .sel-filter-badge--active {
+            background: rgba(0,150,136,0.08);
+            border-color: rgba(0,150,136,0.3);
             color: var(--teal);
-            font-style: normal;
-            font-weight: 500;
+        }
+        .sel-filter-badge--none {
+            font-style: italic;
+            font-weight: 400;
         }
         .sel-header-right {
             display: flex;
@@ -511,12 +526,12 @@
          ══════════════════════════════════ -->
     <div id="selectionStatsSection" style="display:none;margin-bottom:0.5rem">
         <div class="stats-section-header" style="margin-bottom:0.55rem">
-            <div style="display:flex;flex-direction:column;gap:0.2rem">
+            <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap">
                 <span class="stats-section-label">
                     <span class="section-dot section-dot--sel"></span>
                     Current View
                 </span>
-                <span class="sel-filter-info" id="selFilterInfo"></span>
+                <div class="sel-filter-info" id="selFilterInfo"></div>
             </div>
         </div>
         <div class="stats-row">
@@ -548,13 +563,7 @@
         <div class="category-wrap">
             <select id="departmentFilter" class="category-select">
                 <option value="">All Departments</option>
-                <option value="IT">IT</option>
-                <option value="HR">HR</option>
-                <option value="Finance">Finance</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Sales">Sales</option>
-                <option value="Operations">Operations</option>
-                <option value="Engineering">Engineering</option>
+                <!-- Options populated dynamically by dashboard.js loadDepartments() -->
             </select>
             <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"/>

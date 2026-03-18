@@ -1,11 +1,15 @@
 // dashboard.js
 
 const API_BASE_URL = "http://localhost:8080/api/employees";
+const DEPT_API_URL = "http://localhost:8080/api/departments";
 
 let allEmployees      = [];
 let filteredEmployees = [];
 let currentPage       = 1;
 let employeesPerPage  = 10;
+
+// Departments fetched from API — used by filter dropdown and CSV import
+let allDepartments = [];   // array of { id, name, description }
 
 // ── Auth guard ────────────────────────────────────────────────
 const currentUser = (() => {
@@ -15,7 +19,8 @@ const currentUser = (() => {
 if (!currentUser) window.location.href = "login.html";
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadDepartments();   // populate filter dropdown before employees render
     loadEmployees();
     loadGlobalStatistics();
 
@@ -26,6 +31,25 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("clearFiltersBtn")?.addEventListener("click", clearFilters);
     document.getElementById("calcSelBtn")?.addEventListener("click", computeSelectionStats);
 });
+
+// ── Load departments — populates filter dropdown ──────────────
+async function loadDepartments() {
+    try {
+        const res = await fetch(DEPT_API_URL);
+        if (!res.ok) throw new Error();
+        allDepartments = await res.json();
+    } catch {
+        allDepartments = [];
+    }
+
+    const select = document.getElementById("departmentFilter");
+    if (!select) return;
+    // Keep the "All Departments" placeholder, then add one option per dept
+    select.innerHTML = `<option value="">All Departments</option>` +
+        allDepartments.map(d =>
+            `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`
+        ).join("");
+}
 
 // ── Load all employees ────────────────────────────────────────
 async function loadEmployees() {
@@ -84,8 +108,8 @@ function computeSelectionStats() {
         selCountEl.textContent = "0";
         selSalEl.textContent   = "—";
         selAgeEl.textContent   = "—";
-        infoEl.textContent     = "No employees match the current filters";
-        infoEl.className       = "sel-filter-info";
+        infoEl.innerHTML   = `<span class="sel-filter-badge sel-filter-badge--none">No employees match the current filters</span>`;
+        infoEl.className   = "sel-filter-info";
         return;
     }
 
@@ -99,21 +123,25 @@ function computeSelectionStats() {
         `₱${avgSalary.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selAgeEl.textContent   = avgAge.toFixed(1);
 
-    const filters = [];
     const search  = document.getElementById("searchInput")?.value.trim();
     const dept    = document.getElementById("departmentFilter")?.value;
     const ageMin  = document.getElementById("ageMinInput")?.value;
     const ageMax  = document.getElementById("ageMaxInput")?.value;
-    if (search) filters.push(`"${search}"`);
-    if (dept)   filters.push(dept);
-    if (ageMin) filters.push(`age ≥ ${ageMin}`);
-    if (ageMax) filters.push(`age ≤ ${ageMax}`);
 
     const isFiltered = filteredEmployees.length < allEmployees.length;
-    infoEl.textContent = isFiltered
-        ? `Filtered: ${filters.join(", ")}`
-        : `All employees · no active filters`;
-    infoEl.className = isFiltered ? "sel-filter-info sel-filter-info--active" : "sel-filter-info";
+    infoEl.className = "sel-filter-info";
+
+    if (!isFiltered) {
+        infoEl.innerHTML = `<span class="sel-filter-badge sel-filter-badge--none">All employees · no active filters</span>`;
+    } else {
+        const badges = [];
+        if (search) badges.push(`<span class="sel-filter-badge sel-filter-badge--active">"${search}"</span>`);
+        if (dept)   badges.push(`<span class="sel-filter-badge sel-filter-badge--active">${dept}</span>`);
+        if (ageMin && ageMax) badges.push(`<span class="sel-filter-badge sel-filter-badge--active">Age ${ageMin}–${ageMax}</span>`);
+        else if (ageMin)      badges.push(`<span class="sel-filter-badge sel-filter-badge--active">Age ≥ ${ageMin}</span>`);
+        else if (ageMax)      badges.push(`<span class="sel-filter-badge sel-filter-badge--active">Age ≤ ${ageMax}</span>`);
+        infoEl.innerHTML = badges.join("");
+    }
 
     document.querySelectorAll(".stat-card--sel").forEach(card => {
         card.classList.remove("card-pop");
@@ -133,7 +161,7 @@ function applyFilters() {
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
         return (
             (!search      || emp.name.toLowerCase().includes(search) || emp.employeeId.toLowerCase().includes(search)) &&
-            (!department  || emp.department === department) &&
+            (!department  || emp.department?.name === department) &&
             (age >= ageMin && age <= ageMax)
         );
     });
@@ -193,18 +221,25 @@ function renderEmployees(page) {
             <td>${emp.name}</td>
             <td>${formatDate(emp.dateOfBirth)}</td>
             <td>${age}</td>
-            <td><span class="dept-badge dept-badge--${emp.department.toLowerCase()}">${emp.department}</span></td>
+            <td><span class="dept-badge dept-badge--${(emp.department?.name ?? "").toLowerCase()}">${emp.department?.name ?? "—"}</span></td>
             <td>₱${emp.salary.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
             <td>
                 <div style="display:flex;gap:0.4rem">
-                    <button onclick="openViewModal(${emp.id})" class="tbl-btn tbl-btn--view">View</button>
+                    <button class="tbl-btn tbl-btn--view"   data-id="${emp.id}">View</button>
                     <a href="edit-employee.html?id=${emp.id}" class="tbl-btn tbl-btn--ghost">Edit</a>
-                    <button onclick="openDeleteModal(${emp.id}, '${escapeHtml(emp.name)}')"
-                            class="tbl-btn tbl-btn--danger">Delete</button>
+                    <button class="tbl-btn tbl-btn--danger" data-id="${emp.id}" data-name="${escapeHtml(emp.name)}">Delete</button>
                 </div>
             </td>
         </tr>`;
     }).join("");
+
+    // Event delegation — avoids id-as-string interpolation in onclick attributes
+    tbody.querySelectorAll(".tbl-btn--view").forEach(btn => {
+        btn.addEventListener("click", () => openViewModal(Number(btn.dataset.id)));
+    });
+    tbody.querySelectorAll(".tbl-btn--danger").forEach(btn => {
+        btn.addEventListener("click", () => openDeleteModal(Number(btn.dataset.id), btn.dataset.name));
+    });
 }
 
 // ── Pagination ────────────────────────────────────────────────
@@ -292,6 +327,9 @@ function sortTable(key) {
         } else if (key === "dateOfBirth") {
             valA = new Date(a.dateOfBirth);
             valB = new Date(b.dateOfBirth);
+        } else if (key === "department") {
+            valA = (a.department?.name ?? "").toLowerCase();
+            valB = (b.department?.name ?? "").toLowerCase();
         } else {
             valA = (a[key] ?? "").toString().toLowerCase();
             valB = (b[key] ?? "").toString().toLowerCase();
@@ -357,7 +395,7 @@ async function openViewModal(id) {
             <div class="view-field">
                 <span class="view-label">Department</span>
                 <span class="view-value">
-                    <span class="dept-badge dept-badge--${emp.department.toLowerCase()}">${emp.department}</span>
+                    <span class="dept-badge dept-badge--${(emp.department?.name ?? "").toLowerCase()}">${emp.department?.name ?? "—"}</span>
                 </span>
             </div>
             <div class="view-field">
@@ -459,7 +497,7 @@ function exportCSV() {
         emp.employeeId,
         `"${(emp.name || "").replace(/"/g, '""')}"`,
         emp.dateOfBirth,
-        emp.department,
+        emp.department?.name ?? "",
         emp.salary
     ].join(","));
 
@@ -593,11 +631,17 @@ async function runImport() {
         }
         cols.push(cur.trim());
 
+        const deptName = cols[idx.department]?.replace(/^"|"$/g, "").trim();
+        const deptObj  = allDepartments.find(
+            d => d.name.toLowerCase() === (deptName ?? "").toLowerCase()
+        );
+
         const emp = {
             employeeId:  cols[idx.employeeId]?.replace(/^"|"$/g, "").trim(),
             name:        cols[idx.name]?.replace(/^"|"$/g, "").trim(),
             dateOfBirth: cols[idx.dateOfBirth]?.replace(/^"|"$/g, "").trim(),
-            department:  cols[idx.department]?.replace(/^"|"$/g, "").trim(),
+            // Send the Department object expected by the backend ManyToOne mapping
+            department:  deptObj ? { id: deptObj.id } : null,
             salary:      parseFloat(cols[idx.salary])
         };
 
@@ -605,7 +649,7 @@ async function runImport() {
         if (!emp.employeeId)  badFields.push("employeeId");
         if (!emp.name)        badFields.push("name");
         if (!emp.dateOfBirth) badFields.push("dateOfBirth");
-        if (!emp.department)  badFields.push("department");
+        if (!emp.department)  badFields.push(`department (unknown: "${deptName}")`);
         if (isNaN(emp.salary)) badFields.push("salary");
 
         if (badFields.length) {

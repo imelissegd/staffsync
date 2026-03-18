@@ -1,6 +1,5 @@
 package com.mgd.employee_mgmt.exception;
 
-import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,16 +13,22 @@ import java.util.NoSuchElementException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Handles NoSuchElementException — e.g. employee not found by ID
+    // Handles NoSuchElementException — e.g. entity not found by ID
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
         return buildResponse(false, ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
-    // Handles IllegalArgumentException — e.g. duplicate employee ID, invalid salary
+    // Handles IllegalArgumentException — e.g. duplicate ID, invalid salary, bad input
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
         return buildResponse(false, ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles IllegalStateException — e.g. deleting a department that still has employees
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException ex) {
+        return buildResponse(false, ex.getMessage(), HttpStatus.CONFLICT);
     }
 
     // Handles @Valid annotation failures on request body fields

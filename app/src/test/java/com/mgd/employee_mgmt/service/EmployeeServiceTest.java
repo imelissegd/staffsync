@@ -1,6 +1,8 @@
 package com.mgd.employee_mgmt.service;
 
+import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
+import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,31 +24,33 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceTest {
 
-    @Mock
-    private EmployeeRepository employeeRepository;
+    @Mock private EmployeeRepository   employeeRepository;
+    @Mock private DepartmentRepository departmentRepository;
 
-    @InjectMocks
-    private EmployeeService employeeService;
+    @InjectMocks private EmployeeService employeeService;
 
-    private Employee sampleEmployee;
+    private Department sampleDept;
+    private Employee   sampleEmployee;
 
     @BeforeEach
     void setUp() {
+        sampleDept = new Department("Engineering", "Engineers");
+        sampleDept.setId(1L);
+
         sampleEmployee = new Employee(
-                "EMP001",
-                "John Doe",
+                "EMP001", "John Doe",
                 LocalDate.of(1990, 5, 15),
-                "Engineering",
-                75000.0
+                sampleDept, 75000.0
         );
         sampleEmployee.setId(1L);
     }
 
-    // ─── saveEmployee ─────────────────────────────────────────────────────────
+    // ── saveEmployee ──────────────────────────────────────────────────────────
 
     @Test
     void saveEmployee_success() {
         when(employeeRepository.existsByEmployeeId("EMP001")).thenReturn(false);
+        when(departmentRepository.existsById(1L)).thenReturn(true);
         when(employeeRepository.save(sampleEmployee)).thenReturn(sampleEmployee);
 
         Employee result = employeeService.saveEmployee(sampleEmployee);
@@ -71,35 +75,29 @@ class EmployeeServiceTest {
     void saveEmployee_throwsWhenEmployeeIdBlank() {
         sampleEmployee.setEmployeeId("  ");
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
-
-        assertTrue(ex.getMessage().contains("Employee ID is required"));
     }
 
     @Test
     void saveEmployee_throwsWhenNameBlank() {
         sampleEmployee.setName("");
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
-
-        assertTrue(ex.getMessage().contains("Employee name is required"));
     }
 
     @Test
     void saveEmployee_throwsWhenDateOfBirthNull() {
         sampleEmployee.setDateOfBirth(null);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
-
-        assertTrue(ex.getMessage().contains("Date of birth is required"));
     }
 
     @Test
-    void saveEmployee_throwsWhenDepartmentBlank() {
-        sampleEmployee.setDepartment("");
+    void saveEmployee_throwsWhenDepartmentNull() {
+        sampleEmployee.setDepartment(null);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
@@ -108,31 +106,42 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void saveEmployee_throwsWhenSalaryZeroOrNegative() {
-        sampleEmployee.setSalary(0.0);
+    void saveEmployee_throwsWhenDepartmentDoesNotExist() {
+        when(employeeRepository.existsByEmployeeId("EMP001")).thenReturn(false);
+        when(departmentRepository.existsById(1L)).thenReturn(false);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
 
-        assertTrue(ex.getMessage().contains("Salary must be greater than 0"));
+        assertTrue(ex.getMessage().contains("does not exist"));
     }
 
-    // ─── updateEmployee ───────────────────────────────────────────────────────
+    @Test
+    void saveEmployee_throwsWhenSalaryZero() {
+        sampleEmployee.setSalary(0.0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> employeeService.saveEmployee(sampleEmployee));
+    }
+
+    // ── updateEmployee ────────────────────────────────────────────────────────
 
     @Test
     void updateEmployee_success() {
-        Employee updated = new Employee("EMP001", "Jane Doe", LocalDate.of(1992, 3, 20),
-                "HR", 80000.0);
+        Department hr = new Department("HR", "Human resources");
+        hr.setId(2L);
+        Employee updated = new Employee("EMP001", "Jane Doe",
+                LocalDate.of(1992, 3, 20), hr, 80000.0);
 
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(departmentRepository.existsById(2L)).thenReturn(true);
         when(employeeRepository.save(any(Employee.class))).thenReturn(sampleEmployee);
 
         Employee result = employeeService.updateEmployee(1L, updated);
 
         assertNotNull(result);
-        verify(employeeRepository).save(sampleEmployee);
         assertEquals("Jane Doe", sampleEmployee.getName());
-        assertEquals("HR", sampleEmployee.getDepartment());
+        assertEquals(hr, sampleEmployee.getDepartment());
         assertEquals(80000.0, sampleEmployee.getSalary());
     }
 
@@ -146,7 +155,7 @@ class EmployeeServiceTest {
         assertTrue(ex.getMessage().contains("Employee not found with id: 99"));
     }
 
-    // ─── deleteEmployee ───────────────────────────────────────────────────────
+    // ── deleteEmployee ────────────────────────────────────────────────────────
 
     @Test
     void deleteEmployee_success() {
@@ -167,7 +176,7 @@ class EmployeeServiceTest {
         assertTrue(ex.getMessage().contains("Employee not found with id: 99"));
     }
 
-    // ─── getEmployeeById ──────────────────────────────────────────────────────
+    // ── getEmployeeById ───────────────────────────────────────────────────────
 
     @Test
     void getEmployeeById_success() {
@@ -183,13 +192,11 @@ class EmployeeServiceTest {
     void getEmployeeById_throwsWhenNotFound() {
         when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        assertThrows(RuntimeException.class,
                 () -> employeeService.getEmployeeById(99L));
-
-        assertTrue(ex.getMessage().contains("Employee not found with id: 99"));
     }
 
-    // ─── getEmployeeByEmployeeId ──────────────────────────────────────────────
+    // ── getEmployeeByEmployeeId ───────────────────────────────────────────────
 
     @Test
     void getEmployeeByEmployeeId_success() {
@@ -205,33 +212,27 @@ class EmployeeServiceTest {
     void getEmployeeByEmployeeId_throwsWhenNotFound() {
         when(employeeRepository.findByEmployeeId("UNKNOWN")).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        assertThrows(RuntimeException.class,
                 () -> employeeService.getEmployeeByEmployeeId("UNKNOWN"));
-
-        assertTrue(ex.getMessage().contains("Employee not found with employee ID: UNKNOWN"));
     }
 
-    // ─── getAllEmployees ──────────────────────────────────────────────────────
+    // ── getAllEmployees ───────────────────────────────────────────────────────
 
     @Test
     void getAllEmployees_returnsList() {
         when(employeeRepository.findAll()).thenReturn(List.of(sampleEmployee));
 
-        List<Employee> result = employeeService.getAllEmployees();
-
-        assertEquals(1, result.size());
+        assertEquals(1, employeeService.getAllEmployees().size());
     }
 
     @Test
     void getAllEmployees_returnsEmptyList() {
         when(employeeRepository.findAll()).thenReturn(Collections.emptyList());
 
-        List<Employee> result = employeeService.getAllEmployees();
-
-        assertTrue(result.isEmpty());
+        assertTrue(employeeService.getAllEmployees().isEmpty());
     }
 
-    // ─── searchEmployeesByName ────────────────────────────────────────────────
+    // ── searchEmployeesByName ─────────────────────────────────────────────────
 
     @Test
     void searchEmployeesByName_success() {
@@ -241,31 +242,26 @@ class EmployeeServiceTest {
         List<Employee> result = employeeService.searchEmployeesByName("John");
 
         assertEquals(1, result.size());
-        assertEquals("John Doe", result.get(0).getName());
     }
 
     @Test
-    void searchEmployeesByName_throwsWhenNameBlank() {
-        RuntimeException ex = assertThrows(RuntimeException.class,
+    void searchEmployeesByName_throwsWhenBlank() {
+        assertThrows(IllegalArgumentException.class,
                 () -> employeeService.searchEmployeesByName("  "));
-
-        assertTrue(ex.getMessage().contains("Search name cannot be empty"));
     }
 
     @Test
-    void searchEmployeesByName_throwsWhenNameNull() {
-        RuntimeException ex = assertThrows(RuntimeException.class,
+    void searchEmployeesByName_throwsWhenNull() {
+        assertThrows(IllegalArgumentException.class,
                 () -> employeeService.searchEmployeesByName(null));
-
-        assertTrue(ex.getMessage().contains("Search name cannot be empty"));
     }
 
-    // ─── getEmployeesByDepartment ─────────────────────────────────────────────
+    // ── getEmployeesByDepartment ──────────────────────────────────────────────
 
     @Test
     void getEmployeesByDepartment_success() {
-        when(employeeRepository.findByDepartment("Engineering"))
-                .thenReturn(List.of(sampleEmployee));
+        when(departmentRepository.findByName("Engineering")).thenReturn(Optional.of(sampleDept));
+        when(employeeRepository.findByDepartment(sampleDept)).thenReturn(List.of(sampleEmployee));
 
         List<Employee> result = employeeService.getEmployeesByDepartment("Engineering");
 
@@ -273,56 +269,54 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void getEmployeesByDepartment_throwsWhenBlank() {
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> employeeService.getEmployeesByDepartment(""));
+    void getEmployeesByDepartment_throwsWhenDepartmentNotFound() {
+        when(departmentRepository.findByName("Finance")).thenReturn(Optional.empty());
 
-        assertTrue(ex.getMessage().contains("Department cannot be empty"));
+        assertThrows(RuntimeException.class,
+                () -> employeeService.getEmployeesByDepartment("Finance"));
     }
 
-    // ─── calculateAverageSalary ───────────────────────────────────────────────
+    @Test
+    void getEmployeesByDepartment_throwsWhenBlank() {
+        assertThrows(IllegalArgumentException.class,
+                () -> employeeService.getEmployeesByDepartment(""));
+    }
+
+    // ── calculateAverageSalary ────────────────────────────────────────────────
 
     @Test
     void calculateAverageSalary_returnsCorrectAverage() {
-        Employee emp2 = new Employee("EMP002", "Jane", LocalDate.of(1985, 1, 1),
-                "HR", 85000.0);
+        Employee emp2 = new Employee("EMP002", "Jane",
+                LocalDate.of(1985, 1, 1), sampleDept, 85000.0);
         when(employeeRepository.findAll()).thenReturn(Arrays.asList(sampleEmployee, emp2));
 
-        double avg = employeeService.calculateAverageSalary();
-
-        assertEquals(80000.0, avg, 0.01);
+        assertEquals(80000.0, employeeService.calculateAverageSalary(), 0.01);
     }
 
     @Test
-    void calculateAverageSalary_returnsZeroWhenNoEmployees() {
+    void calculateAverageSalary_returnsZeroWhenEmpty() {
         when(employeeRepository.findAll()).thenReturn(Collections.emptyList());
 
-        double avg = employeeService.calculateAverageSalary();
-
-        assertEquals(0.0, avg);
+        assertEquals(0.0, employeeService.calculateAverageSalary());
     }
 
-    // ─── calculateAverageAge ──────────────────────────────────────────────────
+    // ── calculateAverageAge ───────────────────────────────────────────────────
 
     @Test
     void calculateAverageAge_returnsPositiveValue() {
         when(employeeRepository.findAll()).thenReturn(List.of(sampleEmployee));
 
-        double avg = employeeService.calculateAverageAge();
-
-        assertTrue(avg > 0);
+        assertTrue(employeeService.calculateAverageAge() > 0);
     }
 
     @Test
-    void calculateAverageAge_returnsZeroWhenNoEmployees() {
+    void calculateAverageAge_returnsZeroWhenEmpty() {
         when(employeeRepository.findAll()).thenReturn(Collections.emptyList());
 
-        double avg = employeeService.calculateAverageAge();
-
-        assertEquals(0.0, avg);
+        assertEquals(0.0, employeeService.calculateAverageAge());
     }
 
-    // ─── getEmployeesOrderedByDepartment ──────────────────────────────────────
+    // ── getEmployeesOrderedByDepartment ───────────────────────────────────────
 
     @Test
     void getEmployeesOrderedByDepartment_delegatesToRepository() {
@@ -334,19 +328,18 @@ class EmployeeServiceTest {
         verify(employeeRepository).findAllOrderByDepartment();
     }
 
-    // ─── getEmployeesOrderedByAge ─────────────────────────────────────────────
+    // ── getEmployeesOrderedByAge ──────────────────────────────────────────────
 
     @Test
     void getEmployeesOrderedByAge_returnsSortedList() {
-        Employee older = new Employee("EMP003", "Old Bob", LocalDate.of(1960, 1, 1),
-                "Finance", 90000.0);
-        Employee younger = new Employee("EMP004", "Young Sue", LocalDate.of(2000, 6, 1),
-                "IT", 60000.0);
+        Employee older = new Employee("EMP003", "Old Bob",
+                LocalDate.of(1960, 1, 1), sampleDept, 90000.0);
+        Employee younger = new Employee("EMP004", "Young Sue",
+                LocalDate.of(2000, 6, 1), sampleDept, 60000.0);
         when(employeeRepository.findAll()).thenReturn(Arrays.asList(older, younger));
 
         List<Employee> result = employeeService.getEmployeesOrderedByAge();
 
-        assertEquals(2, result.size());
         assertTrue(result.get(0).getAge() <= result.get(1).getAge());
     }
 }

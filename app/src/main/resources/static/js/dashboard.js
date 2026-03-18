@@ -21,7 +21,7 @@ if (!currentUser) window.location.href = "login.html";
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
     await loadDepartments();   // populate filter dropdown before employees render
-    loadEmployees();
+    await loadEmployees();     // must complete before loadGlobalStatistics reads allEmployees
     loadGlobalStatistics();
 
     document.getElementById("searchInput")?.addEventListener("input", applyFilters);
@@ -30,6 +30,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("ageMaxInput")?.addEventListener("input", applyFilters);
     document.getElementById("clearFiltersBtn")?.addEventListener("click", clearFilters);
     document.getElementById("calcSelBtn")?.addEventListener("click", computeSelectionStats);
+
+    // Per-page selector — replaces inline onchange in HTML
+    document.getElementById("perPageSelect")?.addEventListener("change", (e) => {
+        changeEmployeesPerPage(e.target.value);
+    });
+
+    // Sort headers — replaces inline onclick in HTML
+    document.querySelectorAll(".th-sort[data-sort]").forEach(th => {
+        th.addEventListener("click", () => sortTable(th.dataset.sort));
+    });
 });
 
 // ── Load departments — populates filter dropdown ──────────────
@@ -69,17 +79,16 @@ async function loadEmployees() {
 // ── Global statistics ─────────────────────────────────────────
 async function loadGlobalStatistics() {
     try {
-        const [empRes, salaryRes, ageRes] = await Promise.all([
-            fetch(API_BASE_URL),
+        const [salaryRes, ageRes] = await Promise.all([
             fetch(`${API_BASE_URL}/statistics/average-salary`),
             fetch(`${API_BASE_URL}/statistics/average-age`)
         ]);
 
-        const employees  = await empRes.json();
         const salaryData = await salaryRes.json();
         const ageData    = await ageRes.json();
 
-        document.getElementById("totalEmployees").textContent = employees.length;
+        // allEmployees is already populated by loadEmployees()
+        document.getElementById("totalEmployees").textContent = allEmployees.length;
 
         const avg = salaryData.averageSalary || 0;
         document.getElementById("avgSalary").textContent =
@@ -217,8 +226,8 @@ function renderEmployees(page) {
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
         return `
         <tr>
-            <td><strong>${emp.employeeId}</strong></td>
-            <td>${emp.name}</td>
+            <td><strong>${escapeHtml(emp.employeeId)}</strong></td>
+            <td>${escapeHtml(emp.name)}</td>
             <td>${formatDate(emp.dateOfBirth)}</td>
             <td>${age}</td>
             <td><span class="dept-badge dept-badge--${(emp.department?.name ?? "").toLowerCase()}">${emp.department?.name ?? "—"}</span></td>
@@ -428,14 +437,17 @@ function closeDeleteModal() {
 async function deleteEmployee(id) {
     try {
         const res = await fetch(`${API_BASE_URL}/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("Failed to delete");
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || "Failed to delete");
+        }
         closeDeleteModal();
         showToast("Employee deleted successfully.", "success");
         await loadEmployees();
         await loadGlobalStatistics();
     } catch (err) {
         console.error(err);
-        showToast("Failed to delete employee.", "error");
+        showToast(err.message || "Failed to delete employee.", "error");
     }
 }
 
@@ -457,7 +469,8 @@ function showEmpty(msg) {
 }
 
 function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString("en-PH", {
+    const [y, m, d] = dateStr.split("-");
+    return new Date(y, m - 1, d).toLocaleDateString("en-PH", {
         year: "numeric", month: "short", day: "numeric"
     });
 }
@@ -471,7 +484,9 @@ function calculateAge(dob) {
 }
 
 function escapeHtml(str) {
-    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
 
 function showToast(msg, type = "success") {

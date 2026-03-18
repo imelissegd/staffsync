@@ -1,5 +1,6 @@
 package com.mgd.employee_mgmt.repository;
 
+import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,27 +21,33 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 class EmployeeRepositoryTest {
 
-    @Autowired
-    private EmployeeRepository employeeRepository;
+    @Autowired private EmployeeRepository   employeeRepository;
+    @Autowired private DepartmentRepository departmentRepository;
+    @Autowired private EntityManager        entityManager;
 
-    @Autowired
-    private EntityManager entityManager;
-
-    private Employee emp1;
-    private Employee emp2;
-    private Employee emp3;
+    private Department engineering;
+    private Department hr;
+    private Employee   emp1;
+    private Employee   emp2;
+    private Employee   emp3;
 
     @BeforeEach
     void setUp() {
         employeeRepository.deleteAll();
-        entityManager.flush();  // force DELETEs to DB before INSERTs
+        departmentRepository.deleteAll();
+        entityManager.flush();
 
-        emp1 = new Employee("EMP001", "Alice Smith", LocalDate.of(1990, 3, 10), "Engineering", 80000.0);
-        emp2 = new Employee("EMP002", "Bob Jones",   LocalDate.of(1985, 7, 22), "Engineering", 90000.0);
-        emp3 = new Employee("EMP003", "Carol White", LocalDate.of(1995, 11, 5), "HR",          60000.0);
+        // Persist departments first — employees have a FK to department
+        engineering = departmentRepository.save(new Department("Engineering", "Software engineers"));
+        hr          = departmentRepository.save(new Department("HR", "Human resources"));
+        entityManager.flush();
+
+        emp1 = new Employee("EMP001", "Alice Smith", LocalDate.of(1990, 3, 10), engineering, 80000.0);
+        emp2 = new Employee("EMP002", "Bob Jones",   LocalDate.of(1985, 7, 22), engineering, 90000.0);
+        emp3 = new Employee("EMP003", "Carol White", LocalDate.of(1995, 11, 5),  hr,          60000.0);
 
         employeeRepository.saveAll(List.of(emp1, emp2, emp3));
-        entityManager.flush();  // force INSERTs to DB immediately
+        entityManager.flush();
     }
 
     // ─── findByEmployeeId ─────────────────────────────────────────────────────
@@ -62,14 +69,24 @@ class EmployeeRepositoryTest {
 
     @Test
     void findByDepartment_returnsMatchingEmployees() {
-        List<Employee> result = employeeRepository.findByDepartment("Engineering");
+        List<Employee> result = employeeRepository.findByDepartment(engineering);
         assertEquals(2, result.size());
-        assertTrue(result.stream().allMatch(e -> e.getDepartment().equals("Engineering")));
+        assertTrue(result.stream().allMatch(e -> e.getDepartment().getId().equals(engineering.getId())));
     }
 
     @Test
-    void findByDepartment_returnsEmptyWhenNoneMatch() {
-        List<Employee> result = employeeRepository.findByDepartment("Finance");
+    void findByDepartment_returnsOnlyEmployeesForThatDepartment() {
+        List<Employee> result = employeeRepository.findByDepartment(hr);
+        assertEquals(1, result.size());
+        assertEquals("Carol White", result.get(0).getName());
+    }
+
+    @Test
+    void findByDepartment_returnsEmptyWhenNoneAssigned() {
+        Department finance = departmentRepository.save(new Department("Finance", "Finance team"));
+        entityManager.flush();
+
+        List<Employee> result = employeeRepository.findByDepartment(finance);
         assertTrue(result.isEmpty());
     }
 
@@ -83,6 +100,20 @@ class EmployeeRepositoryTest {
     @Test
     void existsByEmployeeId_falseWhenNotExists() {
         assertFalse(employeeRepository.existsByEmployeeId("EMP999"));
+    }
+
+    // ─── existsByDepartment ───────────────────────────────────────────────────
+
+    @Test
+    void existsByDepartment_trueWhenEmployeesAssigned() {
+        assertTrue(employeeRepository.existsByDepartment(engineering));
+    }
+
+    @Test
+    void existsByDepartment_falseWhenNoEmployeesAssigned() {
+        Department finance = departmentRepository.save(new Department("Finance", "Finance team"));
+        entityManager.flush();
+        assertFalse(employeeRepository.existsByDepartment(finance));
     }
 
     // ─── calculateAverageSalary ───────────────────────────────────────────────
@@ -101,14 +132,16 @@ class EmployeeRepositoryTest {
     void findAllOrderByDepartment_returnsSortedByDepartmentThenName() {
         List<Employee> result = employeeRepository.findAllOrderByDepartment();
         assertEquals(3, result.size());
-        assertEquals("Engineering", result.get(0).getDepartment());
-        assertEquals("Engineering", result.get(1).getDepartment());
-        assertEquals("HR", result.get(2).getDepartment());
+        // Engineering comes before HR alphabetically
+        assertEquals("Engineering", result.get(0).getDepartment().getName());
+        assertEquals("Engineering", result.get(1).getDepartment().getName());
+        assertEquals("HR",          result.get(2).getDepartment().getName());
     }
 
     @Test
     void findAllOrderByDepartment_sortsByNameWithinDepartment() {
         List<Employee> result = employeeRepository.findAllOrderByDepartment();
+        // Alice Smith and Bob Jones are both in Engineering; Alice comes first
         assertEquals("Alice Smith", result.get(0).getName());
         assertEquals("Bob Jones",   result.get(1).getName());
     }
@@ -131,6 +164,7 @@ class EmployeeRepositoryTest {
 
     @Test
     void findByNameContainingIgnoreCase_returnsMultipleMatches() {
+        // "Smith" matches Alice Smith only
         List<Employee> result = employeeRepository.findByNameContainingIgnoreCase("smith");
         assertEquals(1, result.size());
     }
@@ -166,7 +200,8 @@ class EmployeeRepositoryTest {
 
     @Test
     void save_persistsNewEmployee() {
-        Employee newEmp = new Employee("EMP004", "Dave Brown", LocalDate.of(1988, 6, 1), "Finance", 70000.0);
+        Employee newEmp = new Employee("EMP004", "Dave Brown",
+                LocalDate.of(1988, 6, 1), engineering, 70000.0);
         Employee saved = employeeRepository.save(newEmp);
         assertNotNull(saved.getId());
         assertEquals("EMP004", saved.getEmployeeId());
@@ -175,7 +210,10 @@ class EmployeeRepositoryTest {
     @Test
     void findById_returnsEmployee() {
         Employee saved = employeeRepository.save(
-                new Employee("EMP005", "Eve Black", LocalDate.of(1993, 2, 14), "IT", 65000.0));
+                new Employee("EMP005", "Eve Black",
+                        LocalDate.of(1993, 2, 14), hr, 65000.0));
+        entityManager.flush();
+
         Optional<Employee> result = employeeRepository.findById(saved.getId());
         assertTrue(result.isPresent());
         assertEquals("Eve Black", result.get().getName());
@@ -185,6 +223,7 @@ class EmployeeRepositoryTest {
     void deleteById_removesEmployee() {
         Long id = emp1.getId();
         employeeRepository.deleteById(id);
+        entityManager.flush();
         assertFalse(employeeRepository.existsById(id));
     }
 
@@ -192,5 +231,15 @@ class EmployeeRepositoryTest {
     void findAll_returnsAllEmployees() {
         List<Employee> all = employeeRepository.findAll();
         assertEquals(3, all.size());
+    }
+
+    @Test
+    void save_throwsOnDuplicateEmployeeId() {
+        Employee duplicate = new Employee("EMP001", "Duplicate Person",
+                LocalDate.of(1992, 1, 1), engineering, 55000.0);
+        assertThrows(Exception.class, () -> {
+            employeeRepository.save(duplicate);
+            entityManager.flush();
+        });
     }
 }

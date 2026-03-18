@@ -62,6 +62,9 @@ class EmployeeServiceTest {
 
     @Test
     void saveEmployee_throwsWhenDuplicateEmployeeId() {
+        // validateEmployee() runs first and checks departmentRepository — must be stubbed
+        // so validation passes and the duplicate-ID check is actually reached
+        when(departmentRepository.existsById(1L)).thenReturn(true);
         when(employeeRepository.existsByEmployeeId("EMP001")).thenReturn(true);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
@@ -107,7 +110,8 @@ class EmployeeServiceTest {
 
     @Test
     void saveEmployee_throwsWhenDepartmentDoesNotExist() {
-        when(employeeRepository.existsByEmployeeId("EMP001")).thenReturn(false);
+        // validateEmployee() reaches the department existence check before the duplicate-ID check,
+        // so only departmentRepository needs to be stubbed here
         when(departmentRepository.existsById(1L)).thenReturn(false);
 
         RuntimeException ex = assertThrows(RuntimeException.class,

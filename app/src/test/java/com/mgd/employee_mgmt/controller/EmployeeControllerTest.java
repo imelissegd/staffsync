@@ -2,6 +2,7 @@ package com.mgd.employee_mgmt.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
 import com.mgd.employee_mgmt.security.SecurityConfig;
 import com.mgd.employee_mgmt.service.EmployeeService;
@@ -38,17 +39,21 @@ class EmployeeControllerTest {
 
     private ObjectMapper objectMapper;
     private Employee sampleEmployee;
+    private Department sampleDepartment;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
+        sampleDepartment = new Department("Engineering", "Software engineers");
+        sampleDepartment.setId(1L);
+
         sampleEmployee = new Employee(
                 "EMP001",
                 "John Doe",
                 LocalDate.of(1990, 5, 15),
-                "Engineering",
+                sampleDepartment,
                 75000.0
         );
         sampleEmployee.setId(1L);
@@ -80,6 +85,18 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$.message", containsString("already exists")));
     }
 
+    @Test
+    void createEmployee_returns400WhenDepartmentInvalid() throws Exception {
+        when(employeeService.saveEmployee(any(Employee.class)))
+                .thenThrow(new IllegalArgumentException("Department with id 99 does not exist"));
+
+        mockMvc.perform(post("/api/employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("does not exist")));
+    }
+
     // ─── GET /api/employees ───────────────────────────────────────────────────
 
     @Test
@@ -109,7 +126,8 @@ class EmployeeControllerTest {
 
         mockMvc.perform(get("/api/employees/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.employeeId", is("EMP001")));
+                .andExpect(jsonPath("$.employeeId", is("EMP001")))
+                .andExpect(jsonPath("$.department.name", is("Engineering")));
     }
 
     @Test
@@ -131,6 +149,16 @@ class EmployeeControllerTest {
         mockMvc.perform(get("/api/employees/employee-id/EMP001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.employeeId", is("EMP001")));
+    }
+
+    @Test
+    void getEmployeeByEmployeeId_returns404WhenNotFound() throws Exception {
+        when(employeeService.getEmployeeByEmployeeId("UNKNOWN"))
+                .thenThrow(new NoSuchElementException("Employee not found with employee ID: UNKNOWN"));
+
+        mockMvc.perform(get("/api/employees/employee-id/UNKNOWN"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("not found")));
     }
 
     // ─── PUT /api/employees/{id} ──────────────────────────────────────────────
@@ -156,6 +184,18 @@ class EmployeeControllerTest {
                         .content(objectMapper.writeValueAsString(sampleEmployee)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message", containsString("not found")));
+    }
+
+    @Test
+    void updateEmployee_returns400WhenValidationFails() throws Exception {
+        when(employeeService.updateEmployee(eq(1L), any(Employee.class)))
+                .thenThrow(new IllegalArgumentException("Salary must be greater than 0"));
+
+        mockMvc.perform(put("/api/employees/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Salary")));
     }
 
     // ─── DELETE /api/employees/{id} ───────────────────────────────────────────
@@ -191,6 +231,25 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$[0].name", is("John Doe")));
     }
 
+    @Test
+    void searchEmployees_returns400WhenNameBlank() throws Exception {
+        when(employeeService.searchEmployeesByName("  "))
+                .thenThrow(new IllegalArgumentException("Search name cannot be empty"));
+
+        mockMvc.perform(get("/api/employees/search").param("name", "  "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("cannot be empty")));
+    }
+
+    @Test
+    void searchEmployees_returns200WithEmptyList() throws Exception {
+        when(employeeService.searchEmployeesByName("xyz")).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/employees/search").param("name", "xyz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
     // ─── GET /api/employees/department/{department} ───────────────────────────
 
     @Test
@@ -201,6 +260,16 @@ class EmployeeControllerTest {
         mockMvc.perform(get("/api/employees/department/Engineering"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void getEmployeesByDepartment_returns404WhenDepartmentNotFound() throws Exception {
+        when(employeeService.getEmployeesByDepartment("Finance"))
+                .thenThrow(new NoSuchElementException("Department not found with name: Finance"));
+
+        mockMvc.perform(get("/api/employees/department/Finance"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("not found")));
     }
 
     // ─── GET /api/employees/statistics/average-salary ────────────────────────
@@ -214,6 +283,15 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$.averageSalary", is(75000.0)));
     }
 
+    @Test
+    void getAverageSalary_returns200WithZeroWhenNoEmployees() throws Exception {
+        when(employeeService.calculateAverageSalary()).thenReturn(0.0);
+
+        mockMvc.perform(get("/api/employees/statistics/average-salary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageSalary", is(0.0)));
+    }
+
     // ─── GET /api/employees/statistics/average-age ───────────────────────────
 
     @Test
@@ -225,6 +303,15 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$.averageAge", is(34.0)));
     }
 
+    @Test
+    void getAverageAge_returns200WithZeroWhenNoEmployees() throws Exception {
+        when(employeeService.calculateAverageAge()).thenReturn(0.0);
+
+        mockMvc.perform(get("/api/employees/statistics/average-age"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageAge", is(0.0)));
+    }
+
     // ─── GET /api/employees/reports/by-department ────────────────────────────
 
     @Test
@@ -233,7 +320,17 @@ class EmployeeControllerTest {
 
         mockMvc.perform(get("/api/employees/reports/by-department"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].department.name", is("Engineering")));
+    }
+
+    @Test
+    void getEmployeesByDepartmentReport_returns200WithEmptyList() throws Exception {
+        when(employeeService.getEmployeesOrderedByDepartment()).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/employees/reports/by-department"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 
     // ─── GET /api/employees/reports/by-age ───────────────────────────────────
@@ -245,5 +342,14 @@ class EmployeeControllerTest {
         mockMvc.perform(get("/api/employees/reports/by-age"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void getEmployeesByAgeReport_returns200WithEmptyList() throws Exception {
+        when(employeeService.getEmployeesOrderedByAge()).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/employees/reports/by-age"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 }

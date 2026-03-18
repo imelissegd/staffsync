@@ -10,14 +10,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class EmployeeTest {
 
     private Employee employee;
+    private Department department;
 
     @BeforeEach
     void setUp() {
+        department = new Department("Engineering", "Software engineers");
+        department.setId(1L);
+
         employee = new Employee(
                 "EMP001",
                 "John Doe",
                 LocalDate.of(1990, 5, 15),
-                "Engineering",
+                department,
                 75000.0
         );
     }
@@ -29,7 +33,8 @@ class EmployeeTest {
         assertEquals("EMP001", employee.getEmployeeId());
         assertEquals("John Doe", employee.getName());
         assertEquals(LocalDate.of(1990, 5, 15), employee.getDateOfBirth());
-        assertEquals("Engineering", employee.getDepartment());
+        assertEquals(department, employee.getDepartment());
+        assertEquals("Engineering", employee.getDepartment().getName());
         assertEquals(75000.0, employee.getSalary());
     }
 
@@ -91,6 +96,13 @@ class EmployeeTest {
     }
 
     @Test
+    void getDetails_containsNAWhenDepartmentNull() {
+        employee.setDepartment(null);
+        String details = employee.getDetails();
+        assertTrue(details.contains("N/A"));
+    }
+
+    @Test
     void toString_matchesGetDetails() {
         assertEquals(employee.getDetails(), employee.toString());
     }
@@ -99,18 +111,38 @@ class EmployeeTest {
 
     @Test
     void setters_updateFieldsCorrectly() {
+        Department hr = new Department("HR", "Human resources");
+        hr.setId(2L);
+
         employee.setId(42L);
         employee.setEmployeeId("EMP999");
         employee.setName("Jane Smith");
-        employee.setDepartment("HR");
+        employee.setDepartment(hr);
         employee.setSalary(90000.0);
         employee.setDateOfBirth(LocalDate.of(1995, 3, 10));
 
         assertEquals(42L, employee.getId());
         assertEquals("EMP999", employee.getEmployeeId());
         assertEquals("Jane Smith", employee.getName());
-        assertEquals("HR", employee.getDepartment());
+        assertEquals(hr, employee.getDepartment());
+        assertEquals("HR", employee.getDepartment().getName());
         assertEquals(90000.0, employee.getSalary());
         assertEquals(LocalDate.of(1995, 3, 10), employee.getDateOfBirth());
+    }
+
+    // ─── OOP: Inheritance & Polymorphism ─────────────────────────────────────
+
+    @Test
+    void employee_isInstanceOfPerson() {
+        assertTrue(employee instanceof Person);
+    }
+
+    @Test
+    void getDetails_overridesAbstractMethod() {
+        // Polymorphism: Employee's getDetails() is called via Person reference
+        Person p = employee;
+        String details = p.getDetails();
+        assertNotNull(details);
+        assertTrue(details.startsWith("Employee["));
     }
 }

@@ -51,10 +51,7 @@ function renderNavbar() {
     // Logout
     const logoutBtn = document.getElementById("navLogoutBtn");
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-            try {
-                await fetch("http://localhost:8080/logout", { method: "POST", credentials: "include" });
-            } catch (_) {}
+        logoutBtn.addEventListener("click", () => {
             localStorage.removeItem("currentUser");
             window.location.href = "login.html";
         });

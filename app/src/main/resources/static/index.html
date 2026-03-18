@@ -139,29 +139,14 @@
             border-color: rgba(0,150,136,0.3);
         }
         .sel-filter-info {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.35rem;
-            font-size: 0.82rem;
+            font-size: 0.7rem;
             color: var(--muted);
             font-style: italic;
         }
         .sel-filter-info--active {
-            font-style: normal;
-        }
-        .sel-filter-pill {
-            display: inline-flex;
-            align-items: center;
-            font-size: 0.75rem;
-            font-weight: 600;
-            font-style: normal;
-            padding: 2px 10px;
-            border-radius: 20px;
-            background: rgba(0,150,136,0.1);
-            border: 1px solid rgba(0,150,136,0.35);
             color: var(--teal);
-            white-space: nowrap;
+            font-style: normal;
+            font-weight: 500;
         }
         .sel-header-right {
             display: flex;
@@ -237,6 +222,75 @@
             border-radius: 12px;
             overflow: hidden;
         }
+        /* ── Import modal ── */
+        .import-drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: var(--offwhite);
+        }
+        .import-drop-zone:hover,
+        .import-drop-zone.dragover {
+            border-color: var(--teal);
+            background: rgba(0,150,136,0.04);
+        }
+        .import-drop-zone svg { width: 32px; height: 32px; stroke: var(--muted); margin-bottom: 0.5rem; }
+        .import-drop-zone p  { font-size: 0.88rem; color: var(--muted); margin: 0; }
+        .import-drop-zone strong { color: var(--teal); }
+        .import-preview {
+            font-size: 0.82rem;
+            color: var(--charcoal);
+            background: var(--offwhite);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .import-preview-name { font-weight: 500; }
+        .import-preview-clear {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .import-preview-clear:hover { color: var(--error); }
+        .import-log {
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            font-family: var(--font-mono, monospace);
+            background: var(--offwhite);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            line-height: 1.7;
+        }
+        .import-log .log-ok    { color: var(--success, #2e7d52); }
+        .import-log .log-skip  { color: var(--muted); }
+        .import-log .log-error { color: var(--error); }
+        .import-hint {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+        .import-hint code {
+            font-family: var(--font-mono, monospace);
+            background: var(--offwhite);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 0.72rem;
+        }
+
         .btn-action--secondary {
             background: var(--offwhite);
             color: var(--charcoal);
@@ -397,13 +451,33 @@
             <h1 class="page-title">Employee Dashboard</h1>
             <p class="page-subtitle">Manage and view all employees</p>
         </div>
-        <a href="add-employee.html" class="btn-action btn-action--primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add Employee
-        </a>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+            <button onclick="exportCSV()" class="btn-action btn-action--secondary" style="display:inline-flex;align-items:center;gap:0.4rem;text-decoration:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export CSV
+            </button>
+            <button onclick="openImportModal()" class="btn-action btn-action--secondary" style="display:inline-flex;align-items:center;gap:0.4rem;text-decoration:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import CSV
+            </button>
+            <a href="add-employee.html" class="btn-action btn-action--primary" style="display:inline-flex;align-items:center;gap:0.4rem;text-decoration:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add Employee
+            </a>
+        </div>
     </div>
 
     <!-- ══════════════════════════════════
@@ -437,8 +511,8 @@
          ══════════════════════════════════ -->
     <div id="selectionStatsSection" style="display:none;margin-bottom:0.5rem">
         <div class="stats-section-header" style="margin-bottom:0.55rem">
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.6rem;">
-                <span class="stats-section-label" style="white-space:nowrap">
+            <div style="display:flex;flex-direction:column;gap:0.2rem">
+                <span class="stats-section-label">
                     <span class="section-dot section-dot--sel"></span>
                     Current View
                 </span>
@@ -571,6 +645,62 @@
     <div id="pagination" class="pagination"></div>
 
 </main>
+
+<!-- ── Import CSV modal ── -->
+<div id="importModal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border-radius:14px;padding:2rem;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+            <h2 style="font-family:'DM Serif Display',serif;font-size:1.25rem;color:var(--charcoal)">Import CSV</h2>
+            <button onclick="closeImportModal()"
+                    style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.3rem;line-height:1;padding:2px 6px">&times;</button>
+        </div>
+
+        <!-- Drop zone (hidden once file picked) -->
+        <div id="importDropZone" class="import-drop-zone"
+             onclick="document.getElementById('csvFileInput').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleFileDrop(event)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>Drop a CSV file here or <strong>click to browse</strong></p>
+        </div>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
+
+        <!-- File preview (shown once file picked) -->
+        <div id="importPreview" style="display:none;margin-top:0.75rem">
+            <div class="import-preview">
+                <span class="import-preview-name" id="importFileName"></span>
+                <button class="import-preview-clear" onclick="clearImportFile()" title="Remove file">&times;</button>
+            </div>
+        </div>
+
+        <!-- Format hint -->
+        <p class="import-hint" style="margin-top:0.75rem">
+            Required columns:
+            <code>employeeId</code>, <code>name</code>, <code>dateOfBirth</code> (YYYY-MM-DD),
+            <code>department</code>, <code>salary</code>
+        </p>
+
+        <!-- Import log (shown after import) -->
+        <div id="importLog" style="display:none;margin-top:0.75rem">
+            <p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.4rem">Import Log</p>
+            <div class="import-log" id="importLogContent"></div>
+        </div>
+
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.25rem">
+            <button onclick="closeImportModal()" class="btn-action btn-action--secondary">Cancel</button>
+            <button onclick="runImport()" id="importBtn" class="btn-action btn-action--primary" disabled>
+                Upload
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- ── View modal ── -->
 <div id="viewModal"

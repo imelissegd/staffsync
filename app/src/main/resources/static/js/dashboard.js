@@ -106,20 +106,14 @@ function computeSelectionStats() {
     const ageMax  = document.getElementById("ageMaxInput")?.value;
     if (search) filters.push(`"${search}"`);
     if (dept)   filters.push(dept);
-    if (ageMin) filters.push(`Age ≥ ${ageMin}`);
-    if (ageMax) filters.push(`Age ≤ ${ageMax}`);
+    if (ageMin) filters.push(`age ≥ ${ageMin}`);
+    if (ageMax) filters.push(`age ≤ ${ageMax}`);
 
     const isFiltered = filteredEmployees.length < allEmployees.length;
-
-    if (isFiltered && filters.length) {
-        infoEl.className = "sel-filter-info sel-filter-info--active";
-        infoEl.innerHTML = filters
-            .map(f => `<span class="sel-filter-pill">${f}</span>`)
-            .join("");
-    } else {
-        infoEl.className = "sel-filter-info";
-        infoEl.innerHTML = `<span style="font-style:italic">All employees &middot; no active filters</span>`;
-    }
+    infoEl.textContent = isFiltered
+        ? `Filtered: ${filters.join(", ")}`
+        : `All employees · no active filters`;
+    infoEl.className = isFiltered ? "sel-filter-info sel-filter-info--active" : "sel-filter-info";
 
     document.querySelectorAll(".stat-card--sel").forEach(card => {
         card.classList.remove("card-pop");
@@ -452,4 +446,225 @@ function showToast(msg, type = "success") {
         toast.classList.remove("toast--visible");
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+// ── Export CSV ────────────────────────────────────────────────
+function exportCSV() {
+    if (!allEmployees.length) {
+        showToast("No employees to export.", "error");
+        return;
+    }
+
+    const headers = ["employeeId", "name", "dateOfBirth", "department", "salary"];
+    const rows = allEmployees.map(emp => [
+        emp.employeeId,
+        `"${(emp.name || "").replace(/"/g, '""')}"`,
+        emp.dateOfBirth,
+        emp.department,
+        emp.salary
+    ].join(","));
+
+    const csv  = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `employees_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported successfully.", "success");
+}
+
+// ── Import CSV — modal open/close ─────────────────────────────
+let importFile = null;
+
+function openImportModal() {
+    importFile = null;
+    document.getElementById("importDropZone").style.display  = "block";
+    document.getElementById("importPreview").style.display   = "none";
+    document.getElementById("importLog").style.display       = "none";
+    document.getElementById("importLogContent").innerHTML    = "";
+    const btn = document.getElementById("importBtn");
+    btn.disabled    = true;
+    btn.textContent = "Upload";
+    btn.onclick     = runImport;
+    document.getElementById("csvFileInput").value            = "";
+    document.getElementById("importModal").style.display     = "flex";
+}
+
+function closeImportModal() {
+    document.getElementById("importModal").style.display = "none";
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) setImportFile(file);
+}
+
+function handleFileDrop(e) {
+    e.preventDefault();
+    document.getElementById("importDropZone").classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith(".csv")) setImportFile(file);
+    else showToast("Please drop a .csv file.", "error");
+}
+
+function setImportFile(file) {
+    importFile = file;
+    document.getElementById("importDropZone").style.display  = "none";
+    document.getElementById("importPreview").style.display   = "block";
+    document.getElementById("importFileName").textContent    = file.name;
+    const btn = document.getElementById("importBtn");
+    btn.disabled    = false;
+    btn.textContent = "Upload";
+    btn.onclick     = runImport;
+    document.getElementById("importLog").style.display       = "none";
+    document.getElementById("importLogContent").innerHTML    = "";
+}
+
+function clearImportFile() {
+    importFile = null;
+    document.getElementById("csvFileInput").value            = "";
+    document.getElementById("importDropZone").style.display  = "block";
+    document.getElementById("importPreview").style.display   = "none";
+    const btn = document.getElementById("importBtn");
+    btn.disabled    = true;
+    btn.textContent = "Upload";
+    btn.onclick     = runImport;
+    document.getElementById("importLog").style.display       = "none";
+    document.getElementById("importLogContent").innerHTML    = "";
+}
+
+// ── Import CSV — run ──────────────────────────────────────────
+async function runImport() {
+    if (!importFile) return;
+
+    const logEl  = document.getElementById("importLogContent");
+    const logBox = document.getElementById("importLog");
+    const btn    = document.getElementById("importBtn");
+
+    logBox.style.display = "block";
+    logEl.innerHTML      = "";
+    btn.disabled         = true;
+    btn.textContent      = "Importing…";
+
+    const text  = await importFile.text();
+    const lines = text.trim().split(/\r?\n/);
+
+    // ── Empty file ────────────────────────────────────────────
+    if (lines.length < 2) {
+        logEl.innerHTML = `<div class="log-error">✗ File is empty or has no data rows.</div>`;
+        setImportBtnState("reupload");
+        return;
+    }
+
+    // ── Validate headers ──────────────────────────────────────
+    const headerRaw = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+    const idx = {
+        employeeId:  headerRaw.indexOf("employeeid"),
+        name:        headerRaw.indexOf("name"),
+        dateOfBirth: headerRaw.indexOf("dateofbirth"),
+        department:  headerRaw.indexOf("department"),
+        salary:      headerRaw.indexOf("salary")
+    };
+    const missing = Object.entries(idx).filter(([, v]) => v === -1).map(([k]) => k);
+    if (missing.length) {
+        logEl.innerHTML = `
+            <div class="log-error" style="margin-bottom:0.35rem">✗ Missing required column${missing.length > 1 ? "s" : ""}:</div>
+            ${missing.map(c => `<div class="log-skip" style="padding-left:1rem">— ${c}</div>`).join("")}
+            <div class="log-skip" style="margin-top:0.5rem;font-style:italic">Fix the column headers and re-upload your file.</div>`;
+        setImportBtnState("reupload");
+        return;
+    }
+
+    // ── Process rows ──────────────────────────────────────────
+    let ok = 0, skipped = 0, errors = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse quoted CSV fields
+        const cols = [];
+        let inQ = false, cur = "";
+        for (const ch of line) {
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+            else { cur += ch; }
+        }
+        cols.push(cur.trim());
+
+        const emp = {
+            employeeId:  cols[idx.employeeId]?.replace(/^"|"$/g, "").trim(),
+            name:        cols[idx.name]?.replace(/^"|"$/g, "").trim(),
+            dateOfBirth: cols[idx.dateOfBirth]?.replace(/^"|"$/g, "").trim(),
+            department:  cols[idx.department]?.replace(/^"|"$/g, "").trim(),
+            salary:      parseFloat(cols[idx.salary])
+        };
+
+        const badFields = [];
+        if (!emp.employeeId)  badFields.push("employeeId");
+        if (!emp.name)        badFields.push("name");
+        if (!emp.dateOfBirth) badFields.push("dateOfBirth");
+        if (!emp.department)  badFields.push("department");
+        if (isNaN(emp.salary)) badFields.push("salary");
+
+        if (badFields.length) {
+            const label = emp.name || emp.employeeId || `row ${i}`;
+            logEl.innerHTML += `<div class="log-skip">Row ${i} — <strong>${label}</strong>: missing or invalid: ${badFields.join(", ")}</div>`;
+            skipped++;
+            continue;
+        }
+
+        try {
+            const res = await fetch(API_BASE_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(emp)
+            });
+            if (res.ok) {
+                logEl.innerHTML += `<div class="log-ok">Row ${i} ✓ — ${emp.name} (${emp.employeeId})</div>`;
+                ok++;
+            } else {
+                const err = await res.json();
+                logEl.innerHTML += `<div class="log-error">Row ${i} ✗ — ${emp.employeeId}: ${err.message || "failed"}</div>`;
+                errors++;
+            }
+        } catch {
+            logEl.innerHTML += `<div class="log-error">Row ${i} ✗ — network error</div>`;
+            errors++;
+        }
+
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ── Summary bar ───────────────────────────────────────────
+    const hasIssues = skipped > 0 || errors > 0;
+    logEl.innerHTML += `
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;flex-wrap:wrap">
+            ${ok      ? `<span style="background:rgba(46,125,82,0.1);color:var(--success,#2e7d52);border:1px solid rgba(46,125,82,0.25);padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:600">✓ ${ok} imported</span>` : ""}
+            ${skipped ? `<span style="background:var(--offwhite);color:var(--muted);border:1px solid var(--border);padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:600">${skipped} skipped</span>` : ""}
+            ${errors  ? `<span style="background:rgba(192,57,43,0.08);color:var(--error);border:1px solid rgba(192,57,43,0.2);padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:600">✗ ${errors} errors</span>` : ""}
+        </div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    setImportBtnState(hasIssues ? "reupload" : "done");
+
+    if (ok > 0) {
+        await loadEmployees();
+        await loadGlobalStatistics();
+        showToast(`${ok} employee${ok !== 1 ? "s" : ""} imported.`, "success");
+    }
+}
+
+// ── Import button state helper ────────────────────────────────
+function setImportBtnState(state) {
+    const btn = document.getElementById("importBtn");
+    btn.disabled = false;
+    if (state === "reupload") {
+        btn.textContent = "Re-upload File";
+        btn.onclick     = () => { clearImportFile(); };
+    } else {
+        btn.textContent = "Done";
+        btn.onclick     = closeImportModal;
+    }
 }

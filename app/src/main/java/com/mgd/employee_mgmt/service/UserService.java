@@ -3,20 +3,19 @@ package com.mgd.employee_mgmt.service;
 import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import com.mgd.employee_mgmt.model.User;
 import com.mgd.employee_mgmt.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.NoSuchElementException;
 
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     public void register(String username, String password) {
         if (username == null || username.trim().isEmpty())
@@ -24,6 +23,9 @@ public class UserService {
 
         if (password == null || password.trim().isEmpty())
             throw new IllegalArgumentException("Password is required.");
+
+        if (password.length() < 6)
+            throw new IllegalArgumentException("Password must be at least 6 characters.");
 
         if (userRepository.existsByUsername(username.trim()))
             throw new IllegalArgumentException("Username already taken. Please choose another.");

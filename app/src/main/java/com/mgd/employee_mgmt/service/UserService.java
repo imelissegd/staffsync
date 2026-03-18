@@ -1,5 +1,6 @@
 package com.mgd.employee_mgmt.service;
 
+import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import com.mgd.employee_mgmt.model.User;
 import com.mgd.employee_mgmt.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,10 +34,10 @@ public class UserService {
 
     public User login(String username, String password) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new NoSuchElementException("Invalid username or password."));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password."));
 
         if (!passwordEncoder.matches(password, user.getPassword()))
-            throw new NoSuchElementException("Invalid username or password.");
+            throw new InvalidCredentialsException("Invalid username or password.");
 
         return user;
     }

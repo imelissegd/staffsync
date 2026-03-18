@@ -663,7 +663,13 @@ async function runImport() {
         const badFields = [];
         if (!emp.employeeId)  badFields.push("employeeId");
         if (!emp.name)        badFields.push("name");
-        if (!emp.dateOfBirth) badFields.push("dateOfBirth");
+        if (!emp.dateOfBirth) {
+            badFields.push("dateOfBirth");
+        } else {
+            const age = calculateAge(emp.dateOfBirth);
+            if (age < 18 || age > 100)
+                badFields.push(`dateOfBirth (age ${age} is outside the allowed range of 18–100)`);
+        }
         if (!emp.department)  badFields.push(`department (unknown: "${deptName}")`);
         if (isNaN(emp.salary)) badFields.push("salary");
 

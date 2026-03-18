@@ -136,6 +136,10 @@ public class EmployeeService {
         if (employee.getDateOfBirth() == null)
             throw new IllegalArgumentException("Date of birth is required");
 
+        int age = employee.getAge();
+        if (age < 18 || age > 100)
+            throw new IllegalArgumentException("Employee age must be between 18 and 100");
+
         if (employee.getDepartment() == null || employee.getDepartment().trim().isEmpty())
             throw new IllegalArgumentException("Department is required");
 

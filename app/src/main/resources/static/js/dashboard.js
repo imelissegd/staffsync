@@ -500,15 +500,62 @@ function showToast(msg, type = "success") {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
-// ── Export CSV ────────────────────────────────────────────────
+// ── Export CSV — open choice modal ───────────────────────────
 function exportCSV() {
     if (!allEmployees.length) {
         showToast("No employees to export.", "error");
         return;
     }
 
+    const isFiltered = filteredEmployees.length < allEmployees.length;
+
+    // Update option labels with live counts
+    document.getElementById("exportAllCount").textContent =
+        `All Employees (${allEmployees.length})`;
+    document.getElementById("exportViewCount").textContent =
+        `Current View (${filteredEmployees.length})`;
+
+    // Disable "Current View" option when no filters are active — it would
+    // be identical to "Export All", so there is no point offering it
+    const viewBtn = document.getElementById("exportViewBtn");
+    const viewNote = document.getElementById("exportViewNote");
+    if (isFiltered) {
+        viewBtn.disabled = false;
+        viewBtn.style.opacity = "1";
+        viewNote.style.display = "none";
+    } else {
+        viewBtn.disabled = true;
+        viewBtn.style.opacity = "0.45";
+        viewNote.style.display = "block";
+    }
+
+    document.getElementById("exportModal").style.display = "flex";
+}
+
+function closeExportModal() {
+    document.getElementById("exportModal").style.display = "none";
+}
+
+// ── Export all employees ──────────────────────────────────────
+function exportAll() {
+    closeExportModal();
+    downloadCSV(allEmployees, "employees_all");
+}
+
+// ── Export current filtered/sorted view ──────────────────────
+function exportCurrentView() {
+    if (!filteredEmployees.length) {
+        showToast("No employees in the current view.", "error");
+        return;
+    }
+    closeExportModal();
+    downloadCSV(filteredEmployees, "employees_view");
+}
+
+// ── Shared CSV download helper ────────────────────────────────
+function downloadCSV(employees, filenamePrefix) {
     const headers = ["employeeId", "name", "dateOfBirth", "department", "salary"];
-    const rows = allEmployees.map(emp => [
+    const rows = employees.map(emp => [
         emp.employeeId,
         `"${(emp.name || "").replace(/"/g, '""')}"`,
         emp.dateOfBirth,
@@ -521,10 +568,10 @@ function exportCSV() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
-    a.download = `employees_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast("Exported successfully.", "success");
+    showToast(`Exported ${employees.length} employee${employees.length !== 1 ? "s" : ""} successfully.`, "success");
 }
 
 // ── Import CSV — modal open/close ─────────────────────────────

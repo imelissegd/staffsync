@@ -452,6 +452,14 @@
             justify-content: flex-end;
             margin-top: 1.25rem;
         }
+        /* ── Export modal option buttons ── */
+        #exportAllBtn:hover:not(:disabled) {
+            border-color: var(--charcoal);
+        }
+        #exportViewBtn:hover:not(:disabled) {
+            border-color: var(--teal);
+            background: rgba(0,150,136,0.08);
+        }
     </style>
 </head>
 <body class="page-body">
@@ -654,6 +662,63 @@
     <div id="pagination" class="pagination"></div>
 
 </main>
+
+<!-- ── Export CSV modal ── -->
+<div id="exportModal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border-radius:14px;padding:2rem;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+            <h2 style="font-family:'DM Serif Display',serif;font-size:1.25rem;color:var(--charcoal)">Export CSV</h2>
+            <button onclick="closeExportModal()"
+                    style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.3rem;line-height:1;padding:2px 6px">&times;</button>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem">Choose which employees to include in the export.</p>
+
+        <!-- Option: Export All -->
+        <button id="exportAllBtn" onclick="exportAll()"
+                style="width:100%;display:flex;align-items:center;gap:1rem;padding:1rem 1.1rem;
+                       background:var(--offwhite);border:1.5px solid var(--border);border-radius:10px;
+                       cursor:pointer;text-align:left;margin-bottom:0.75rem;transition:border-color 0.18s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="width:20px;height:20px;flex-shrink:0;stroke:var(--charcoal)">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            <div>
+                <div style="font-size:0.9rem;font-weight:600;color:var(--charcoal)" id="exportAllCount">All Employees</div>
+                <div style="font-size:0.78rem;color:var(--muted);margin-top:0.1rem">Exports every employee regardless of active filters</div>
+            </div>
+        </button>
+
+        <!-- Option: Export Current View -->
+        <button id="exportViewBtn" onclick="exportCurrentView()"
+                style="width:100%;display:flex;align-items:center;gap:1rem;padding:1rem 1.1rem;
+                       background:rgba(0,150,136,0.04);border:1.5px solid rgba(0,150,136,0.3);border-radius:10px;
+                       cursor:pointer;text-align:left;transition:border-color 0.18s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="width:20px;height:20px;flex-shrink:0;stroke:var(--teal)">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            <div>
+                <div style="font-size:0.9rem;font-weight:600;color:var(--teal)" id="exportViewCount">Current View</div>
+                <div style="font-size:0.78rem;color:var(--muted);margin-top:0.1rem">Exports only the employees matching your active filters</div>
+                <div id="exportViewNote"
+                     style="display:none;font-size:0.75rem;color:var(--muted);margin-top:0.25rem;font-style:italic">
+                    No filters active — same as Export All
+                </div>
+            </div>
+        </button>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:1.25rem">
+            <button onclick="closeExportModal()" class="btn-action btn-action--secondary">Cancel</button>
+        </div>
+    </div>
+</div>
 
 <!-- ── Import CSV modal ── -->
 <div id="importModal"

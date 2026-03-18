@@ -1,13 +1,18 @@
 package com.mgd.employee_mgmt.model;
 
 import jakarta.persistence.MappedSuperclass;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.Period;
 
-@MappedSuperclass 
+@MappedSuperclass
 public abstract class Person {
-    
+
+    @NotBlank(message = "Name is required")
     private String name;
+
+    @NotNull(message = "Date of birth is required")
     private LocalDate dateOfBirth;
 
     // Constructors
@@ -44,5 +49,5 @@ public abstract class Person {
 
     // Abstraction - abstract method to be implemented by subclasses
     public abstract String getDetails();
-    
+
 }

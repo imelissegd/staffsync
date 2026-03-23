@@ -2,10 +2,12 @@ package com.mgd.employee_mgmt.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mgd.employee_mgmt.config.AppConfig;
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
 import com.mgd.employee_mgmt.security.SecurityConfig;
 import com.mgd.employee_mgmt.service.EmployeeService;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,18 +30,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(EmployeeController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, AppConfig.class, MessageUtil.class})
 class EmployeeControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private EmployeeService employeeService;
+    @Autowired private MockMvc mockMvc;
+    @MockBean  private EmployeeService employeeService;
 
     private ObjectMapper objectMapper;
-    private Employee sampleEmployee;
-    private Department sampleDepartment;
+    private Employee     sampleEmployee;
+    private Department   sampleDepartment;
 
     @BeforeEach
     void setUp() {
@@ -50,12 +49,9 @@ class EmployeeControllerTest {
         sampleDepartment.setId(1L);
 
         sampleEmployee = new Employee(
-                "EMP001",
-                "John Doe",
+                "EMP001", "John Doe",
                 LocalDate.of(1990, 5, 15),
-                sampleDepartment,
-                75000.0
-        );
+                sampleDepartment, 75000.0);
         sampleEmployee.setId(1L);
     }
 
@@ -95,6 +91,30 @@ class EmployeeControllerTest {
                         .content(objectMapper.writeValueAsString(sampleEmployee)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("does not exist")));
+    }
+
+    @Test
+    void createEmployee_returns400WhenSalaryInvalid() throws Exception {
+        when(employeeService.saveEmployee(any(Employee.class)))
+                .thenThrow(new IllegalArgumentException("Salary must be greater than 0"));
+
+        mockMvc.perform(post("/api/employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Salary")));
+    }
+
+    @Test
+    void createEmployee_returns400WhenAgeInvalid() throws Exception {
+        when(employeeService.saveEmployee(any(Employee.class)))
+                .thenThrow(new IllegalArgumentException("Employee age must be between 18 and 100"));
+
+        mockMvc.perform(post("/api/employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleEmployee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("age must be between")));
     }
 
     // ─── GET /api/employees ───────────────────────────────────────────────────
@@ -154,7 +174,8 @@ class EmployeeControllerTest {
     @Test
     void getEmployeeByEmployeeId_returns404WhenNotFound() throws Exception {
         when(employeeService.getEmployeeByEmployeeId("UNKNOWN"))
-                .thenThrow(new NoSuchElementException("Employee not found with employee ID: UNKNOWN"));
+                .thenThrow(new NoSuchElementException(
+                        "Employee not found with employee ID: UNKNOWN"));
 
         mockMvc.perform(get("/api/employees/employee-id/UNKNOWN"))
                 .andExpect(status().isNotFound())
@@ -206,7 +227,7 @@ class EmployeeControllerTest {
 
         mockMvc.perform(delete("/api/employees/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Employee deleted successfully")));
+                .andExpect(jsonPath("$.message", is("Employee deleted successfully.")));
     }
 
     @Test

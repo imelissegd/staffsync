@@ -1,9 +1,11 @@
 package com.mgd.employee_mgmt.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mgd.employee_mgmt.config.AppConfig;
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.security.SecurityConfig;
 import com.mgd.employee_mgmt.service.DepartmentService;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,20 +27,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DepartmentController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, AppConfig.class, MessageUtil.class})
 class DepartmentControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockBean  private DepartmentService departmentService;
 
     private ObjectMapper objectMapper;
-    private Department sampleDept;
+    private Department   sampleDept;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-
-        sampleDept = new Department("Engineering", "Software engineers");
+        sampleDept   = new Department("Engineering", "Software engineers");
         sampleDept.setId(1L);
     }
 
@@ -59,7 +60,8 @@ class DepartmentControllerTest {
     @Test
     void createDepartment_returns400WhenDuplicate() throws Exception {
         when(departmentService.createDepartment(any(Department.class)))
-                .thenThrow(new IllegalArgumentException("Department with name 'Engineering' already exists"));
+                .thenThrow(new IllegalArgumentException(
+                        "Department with name 'Engineering' already exists."));
 
         mockMvc.perform(post("/api/departments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,7 +73,7 @@ class DepartmentControllerTest {
     @Test
     void createDepartment_returns400WhenNameBlank() throws Exception {
         when(departmentService.createDepartment(any(Department.class)))
-                .thenThrow(new IllegalArgumentException("Department name is required"));
+                .thenThrow(new IllegalArgumentException("Department name is required."));
 
         Department blank = new Department("", null);
         mockMvc.perform(post("/api/departments")
@@ -175,7 +177,7 @@ class DepartmentControllerTest {
     @Test
     void updateDepartment_returns400WhenNameConflict() throws Exception {
         when(departmentService.updateDepartment(eq(1L), any(Department.class)))
-                .thenThrow(new IllegalArgumentException("Department with name 'HR' already exists"));
+                .thenThrow(new IllegalArgumentException("Department with name 'HR' already exists."));
 
         mockMvc.perform(put("/api/departments/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -192,7 +194,7 @@ class DepartmentControllerTest {
 
         mockMvc.perform(delete("/api/departments/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Department deleted successfully")));
+                .andExpect(jsonPath("$.message", is("Department deleted successfully.")));
     }
 
     @Test

@@ -1,10 +1,12 @@
 package com.mgd.employee_mgmt.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mgd.employee_mgmt.config.AppConfig;
 import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import com.mgd.employee_mgmt.model.User;
 import com.mgd.employee_mgmt.security.SecurityConfig;
 import com.mgd.employee_mgmt.service.UserService;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,14 +24,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, AppConfig.class, MessageUtil.class})
 class AuthControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private UserService userService;
+    @Autowired private MockMvc mockMvc;
+    @MockBean  private UserService userService;
 
     private ObjectMapper objectMapper;
 
@@ -46,7 +45,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", "secret"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", "secret"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("Account created successfully.")));
@@ -59,7 +59,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "  ", "password", "secret"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "  ", "password", "secret"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("Username is required.")));
@@ -72,10 +73,25 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", ""))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", ""))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("Password is required.")));
+    }
+
+    @Test
+    void register_failsWhenPasswordTooShort() throws Exception {
+        doThrow(new IllegalArgumentException("Password must be at least 6 characters."))
+                .when(userService).register("alice", "abc");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", "abc"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Password must be at least 6 characters.")));
     }
 
     @Test
@@ -85,7 +101,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", "secret"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", "secret"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("Username already taken. Please choose another.")));
@@ -113,7 +130,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", "secret"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", "secret"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.username", is("alice")))
@@ -127,7 +145,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "unknown", "password", "pass"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "unknown", "password", "pass"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("Invalid username or password.")));
@@ -140,7 +159,8 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("username", "alice", "password", "wrong"))))
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "alice", "password", "wrong"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("Invalid username or password.")));

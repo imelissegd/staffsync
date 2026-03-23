@@ -1,19 +1,16 @@
 // departments.js
-
-const API = "http://localhost:8080/api/departments";
+import { API_DEPTS, PAGE_LOGIN, MSG } from "./config.js";
 
 // Auth guard
 const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("currentUser")); }
     catch { return null; }
 })();
-if (!currentUser) window.location.href = "login.html";
+if (!currentUser) window.location.href = PAGE_LOGIN;
 
-// ── State ────────────────────────────────────────────────────────────────────
-let departments = [];
+let departments     = [];
 let pendingDeleteId = null;
 
-// ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
     loadDepartments();
     document.getElementById("deptForm").addEventListener("submit", handleSubmit);
@@ -22,19 +19,19 @@ document.addEventListener("DOMContentLoaded", () => {
 // ── Load all departments ──────────────────────────────────────────────────────
 async function loadDepartments() {
     try {
-        const res = await fetch(API);
-        if (!res.ok) throw new Error("Failed to load departments");
+        const res = await fetch(API_DEPTS);
+        if (!res.ok) throw new Error(MSG.DEPT_LOAD_FAIL);
         departments = await res.json();
         renderTable();
-    } catch (err) {
+    } catch {
         document.getElementById("deptTableBody").innerHTML =
-            `<tr><td class="state-cell" colspan="2">Failed to load departments. Is the backend running?</td></tr>`;
+            `<tr><td class="state-cell" colspan="2">${MSG.DEPT_LOAD_FAIL}</td></tr>`;
     }
 }
 
 // ── Render table ──────────────────────────────────────────────────────────────
 function renderTable() {
-    const tbody = document.getElementById("deptTableBody");
+    const tbody   = document.getElementById("deptTableBody");
     const countEl = document.getElementById("deptCount");
 
     countEl.textContent = `${departments.length} department${departments.length !== 1 ? "s" : ""}`;
@@ -61,7 +58,6 @@ function renderTable() {
         </tr>
     `).join("");
 
-    // Event delegation — avoids id-as-string interpolation in onclick attributes
     tbody.querySelectorAll(".btn-edit").forEach(btn => {
         btn.addEventListener("click", () => startEdit(Number(btn.dataset.id)));
     });
@@ -78,36 +74,36 @@ async function handleSubmit(e) {
     const editingIdRaw = document.getElementById("editingId").value;
     const editingId    = editingIdRaw && editingIdRaw !== "null" ? Number(editingIdRaw) : null;
     const payload = {
-        name: document.getElementById("deptName").value.trim(),
+        name:        document.getElementById("deptName").value.trim(),
         description: document.getElementById("deptDesc").value.trim() || null
     };
 
     setSubmitLoading(true);
 
     try {
-        const url    = editingId ? `${API}/${editingId}` : API;
+        const url    = editingId ? `${API_DEPTS}/${editingId}` : API_DEPTS;
         const method = editingId ? "PUT" : "POST";
 
         const res = await fetch(url, {
             method,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body:    JSON.stringify(payload)
         });
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Operation failed");
+            throw new Error(err.message || MSG.DEPT_OP_FAIL);
         }
 
         showMessage(
-            editingId ? "Department updated successfully!" : "Department added successfully!",
+            editingId ? MSG.DEPT_UPDATE_SUCCESS : MSG.DEPT_ADD_SUCCESS,
             "success"
         );
         resetForm();
         await loadDepartments();
 
     } catch (err) {
-        showMessage(err.message || "An error occurred. Please try again.", "error");
+        showMessage(err.message || MSG.DEPT_OP_FAIL, "error");
     } finally {
         setSubmitLoading(false);
     }
@@ -118,14 +114,13 @@ function startEdit(id) {
     const dept = departments.find(d => d.id === id);
     if (!dept || !dept.id) return;
 
-    document.getElementById("editingId").value = String(dept.id);
-    document.getElementById("deptName").value       = dept.name;
-    document.getElementById("deptDesc").value       = dept.description || "";
-    document.getElementById("formTitle").textContent = "Edit Department";
-    document.getElementById("submitText").textContent = "Save Changes";
+    document.getElementById("editingId").value             = String(dept.id);
+    document.getElementById("deptName").value              = dept.name;
+    document.getElementById("deptDesc").value              = dept.description || "";
+    document.getElementById("formTitle").textContent       = "Edit Department";
+    document.getElementById("submitText").textContent      = "Save Changes";
     document.getElementById("cancelBtn").classList.add("visible");
 
-    // Scroll form into view on mobile
     document.querySelector(".form-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -149,18 +144,18 @@ async function executeDelete() {
     closeDeleteModal();
 
     try {
-        const res = await fetch(`${API}/${idToDelete}`, { method: "DELETE" });
+        const res = await fetch(`${API_DEPTS}/${idToDelete}`, { method: "DELETE" });
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Failed to delete department");
+            throw new Error(err.message || MSG.DEPT_DELETE_FAIL);
         }
 
-        showMessage("Department deleted successfully!", "success");
+        showMessage(MSG.DEPT_DELETE_SUCCESS, "success");
         await loadDepartments();
 
     } catch (err) {
-        showMessage(err.message || "Failed to delete department.", "error");
+        showMessage(err.message || MSG.DEPT_DELETE_FAIL, "error");
     }
 }
 
@@ -179,7 +174,7 @@ function resetForm() {
 function validateForm() {
     const nameInput = document.getElementById("deptName");
     const nameError = document.getElementById("deptNameError");
-    const valid = nameInput.value.trim() !== "";
+    const valid     = nameInput.value.trim() !== "";
 
     if (!valid) {
         nameInput.classList.add("error");
@@ -193,9 +188,9 @@ function validateForm() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function setSubmitLoading(loading) {
-    document.getElementById("submitBtn").disabled     = loading;
-    document.getElementById("submitText").style.display = loading ? "none" : "inline";
-    document.getElementById("spinner").style.display    = loading ? "inline-block" : "none";
+    document.getElementById("submitBtn").disabled         = loading;
+    document.getElementById("submitText").style.display   = loading ? "none" : "inline";
+    document.getElementById("spinner").style.display      = loading ? "inline-block" : "none";
 }
 
 function showMessage(text, type) {
@@ -214,6 +209,10 @@ function showMessage(text, type) {
 
 function escapeHtml(str) {
     if (!str) return "";
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
+
+// Expose modal close to onclick in HTML
+window.closeDeleteModal = closeDeleteModal;
+window.resetForm        = resetForm;

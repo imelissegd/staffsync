@@ -1,34 +1,31 @@
 // add-employee.js
-
-const API_BASE_URL  = "http://localhost:8080/api/employees";
-const DEPT_API_URL  = "http://localhost:8080/api/departments";
+import { API_EMPLOYEES, API_DEPTS, PAGE_LOGIN, PAGE_DASHBOARD, MSG } from "./config.js";
 
 // Auth guard
 const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("currentUser")); }
     catch { return null; }
 })();
-if (!currentUser) window.location.href = "login.html";
+if (!currentUser) window.location.href = PAGE_LOGIN;
 
 document.addEventListener("DOMContentLoaded", async () => {
     await loadDepartments();
     document.getElementById("employeeForm").addEventListener("submit", handleSubmit);
 });
 
-// ── Populate department dropdown from API ─────────────────────────────────────
+// ── Populate department dropdown ──────────────────────────────────────────────
 async function loadDepartments() {
     const select = document.getElementById("department");
     try {
-        const res = await fetch(DEPT_API_URL);
+        const res = await fetch(API_DEPTS);
         if (!res.ok) throw new Error();
         const departments = await res.json();
-
         select.innerHTML = `<option value="">Select Department</option>` +
             departments.map(d =>
                 `<option value="${d.id}">${escapeHtml(d.name)}</option>`
             ).join("");
     } catch {
-        select.innerHTML = `<option value="">⚠ Failed to load departments</option>`;
+        select.innerHTML = `<option value="">${MSG.DEPT_LOAD_DROPDOWN_FAIL}</option>`;
     }
 }
 
@@ -36,8 +33,8 @@ async function handleSubmit(e) {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const deptRaw = document.getElementById("department").value;
-    const deptId  = deptRaw ? Number(deptRaw) : null;
+    const deptRaw  = document.getElementById("department").value;
+    const deptId   = deptRaw ? Number(deptRaw) : null;
     const employee = {
         employeeId:  document.getElementById("employeeId").value.trim(),
         name:        document.getElementById("name").value.trim(),
@@ -55,25 +52,25 @@ async function handleSubmit(e) {
     spinner.style.display    = "inline-block";
 
     try {
-        const res = await fetch(API_BASE_URL, {
-            method: "POST",
+        const res = await fetch(API_EMPLOYEES, {
+            method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(employee)
+            body:    JSON.stringify(employee)
         });
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Failed to add employee");
+            throw new Error(err.message || MSG.EMP_ADD_FAIL);
         }
 
-        showMessage("Employee added successfully!", "success");
+        showMessage(MSG.EMP_ADD_SUCCESS, "success");
         document.getElementById("employeeForm").reset();
-        await loadDepartments(); // re-populate after reset clears select
-        setTimeout(() => window.location.href = "index.html", 1800);
+        await loadDepartments();
+        setTimeout(() => window.location.href = PAGE_DASHBOARD, 1800);
 
     } catch (err) {
         console.error(err);
-        showMessage(err.message || "Failed to add employee. Please try again.", "error");
+        showMessage(err.message || MSG.EMP_ADD_FAIL, "error");
         submitBtn.disabled       = false;
         submitText.style.display = "inline";
         spinner.style.display    = "none";
@@ -82,7 +79,6 @@ async function handleSubmit(e) {
 
 function validateForm() {
     let isValid = true;
-
     const fields = [
         { id: "employeeId",  errId: "employeeIdError",  test: v => v.trim() !== "" },
         { id: "name",        errId: "nameError",        test: v => v.trim() !== "" },
@@ -130,6 +126,6 @@ function showMessage(text, type) {
 }
 
 function escapeHtml(str) {
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }

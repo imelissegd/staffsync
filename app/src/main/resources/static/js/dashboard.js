@@ -1,27 +1,28 @@
 // dashboard.js
-
-const API_BASE_URL = "http://localhost:8080/api/employees";
-const DEPT_API_URL = "http://localhost:8080/api/departments";
+import {
+    API_EMPLOYEES, API_DEPTS,
+    URL_EMP_AVG_SALARY, URL_EMP_AVG_AGE,
+    PAGE_LOGIN, PAGE_EDIT_EMP,
+    MSG
+} from "./config.js";
 
 let allEmployees      = [];
 let filteredEmployees = [];
 let currentPage       = 1;
 let employeesPerPage  = 10;
-
-// Departments fetched from API — used by filter dropdown and CSV import
-let allDepartments = [];   // array of { id, name, description }
+let allDepartments    = [];
 
 // ── Auth guard ────────────────────────────────────────────────
 const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("currentUser")); }
     catch { return null; }
 })();
-if (!currentUser) window.location.href = "login.html";
+if (!currentUser) window.location.href = PAGE_LOGIN;
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-    await loadDepartments();   // populate filter dropdown before employees render
-    await loadEmployees();     // must complete before loadGlobalStatistics reads allEmployees
+    await loadDepartments();
+    await loadEmployees();
     loadGlobalStatistics();
 
     document.getElementById("searchInput")?.addEventListener("input", applyFilters);
@@ -31,21 +32,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("clearFiltersBtn")?.addEventListener("click", clearFilters);
     document.getElementById("calcSelBtn")?.addEventListener("click", computeSelectionStats);
 
-    // Per-page selector — replaces inline onchange in HTML
     document.getElementById("perPageSelect")?.addEventListener("change", (e) => {
         changeEmployeesPerPage(e.target.value);
     });
 
-    // Sort headers — replaces inline onclick in HTML
     document.querySelectorAll(".th-sort[data-sort]").forEach(th => {
         th.addEventListener("click", () => sortTable(th.dataset.sort));
     });
 });
 
-// ── Load departments — populates filter dropdown ──────────────
+// ── Load departments ──────────────────────────────────────────
 async function loadDepartments() {
     try {
-        const res = await fetch(DEPT_API_URL);
+        const res = await fetch(API_DEPTS);
         if (!res.ok) throw new Error();
         allDepartments = await res.json();
     } catch {
@@ -54,7 +53,6 @@ async function loadDepartments() {
 
     const select = document.getElementById("departmentFilter");
     if (!select) return;
-    // Keep the "All Departments" placeholder, then add one option per dept
     select.innerHTML = `<option value="">All Departments</option>` +
         allDepartments.map(d =>
             `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`
@@ -65,14 +63,14 @@ async function loadDepartments() {
 async function loadEmployees() {
     showTableLoading();
     try {
-        const res = await fetch(API_BASE_URL);
-        if (!res.ok) throw new Error("Failed to fetch employees");
+        const res = await fetch(API_EMPLOYEES);
+        if (!res.ok) throw new Error(MSG.DASH_LOAD_FAIL);
         allEmployees      = await res.json();
         filteredEmployees = [...allEmployees];
         applyFilters();
     } catch (err) {
         console.error(err);
-        showEmpty("Error loading employees. Is the backend running?");
+        showEmpty(MSG.DASH_LOAD_FAIL);
     }
 }
 
@@ -80,14 +78,13 @@ async function loadEmployees() {
 async function loadGlobalStatistics() {
     try {
         const [salaryRes, ageRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/statistics/average-salary`),
-            fetch(`${API_BASE_URL}/statistics/average-age`)
+            fetch(URL_EMP_AVG_SALARY),
+            fetch(URL_EMP_AVG_AGE)
         ]);
 
         const salaryData = await salaryRes.json();
         const ageData    = await ageRes.json();
 
-        // allEmployees is already populated by loadEmployees()
         document.getElementById("totalEmployees").textContent = allEmployees.length;
 
         const avg = salaryData.averageSalary || 0;
@@ -137,8 +134,8 @@ function computeSelectionStats() {
     const ageMin  = document.getElementById("ageMinInput")?.value;
     const ageMax  = document.getElementById("ageMaxInput")?.value;
 
-    const isFiltered = filteredEmployees.length < allEmployees.length;
-    infoEl.className = "sel-filter-info";
+    const isFiltered  = filteredEmployees.length < allEmployees.length;
+    infoEl.className  = "sel-filter-info";
 
     if (!isFiltered) {
         infoEl.innerHTML = `<span class="sel-filter-badge sel-filter-badge--none">All employees · no active filters</span>`;
@@ -169,14 +166,14 @@ function applyFilters() {
     filteredEmployees = allEmployees.filter(emp => {
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
         return (
-            (!search      || emp.name.toLowerCase().includes(search) || emp.employeeId.toLowerCase().includes(search)) &&
-            (!department  || emp.department?.name === department) &&
+            (!search     || emp.name.toLowerCase().includes(search) || emp.employeeId.toLowerCase().includes(search)) &&
+            (!department || emp.department?.name === department) &&
             (age >= ageMin && age <= ageMax)
         );
     });
 
     updateResultsCount();
-    currentPage = 1;                        // reset to first page on every filter change
+    currentPage = 1;
     renderEmployees(currentPage);
     setupPagination();
 }
@@ -202,7 +199,7 @@ function updateResultsCount() {
         : `${total} employee${total !== 1 ? "s" : ""} total`;
 }
 
-// ── Render table (current page slice only) ────────────────────
+// ── Render table ──────────────────────────────────────────────
 function renderEmployees(page) {
     const tbody   = document.getElementById("employeeTableBody");
     const emptyEl = document.getElementById("emptyState");
@@ -217,10 +214,9 @@ function renderEmployees(page) {
     tableEl.style.display = "table";
     emptyEl.style.display = "none";
 
-    // Slice just the rows for this page
-    const start      = (page - 1) * employeesPerPage;
-    const end        = start + employeesPerPage;
-    const pageItems  = filteredEmployees.slice(start, end);
+    const start     = (page - 1) * employeesPerPage;
+    const end       = start + employeesPerPage;
+    const pageItems = filteredEmployees.slice(start, end);
 
     tbody.innerHTML = pageItems.map(emp => {
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
@@ -235,14 +231,13 @@ function renderEmployees(page) {
             <td>
                 <div style="display:flex;gap:0.4rem">
                     <button class="tbl-btn tbl-btn--view"   data-id="${emp.id}">View</button>
-                    <a href="edit-employee.html?id=${emp.id}" class="tbl-btn tbl-btn--ghost">Edit</a>
+                    <a href="${PAGE_EDIT_EMP}?id=${emp.id}" class="tbl-btn tbl-btn--ghost">Edit</a>
                     <button class="tbl-btn tbl-btn--danger" data-id="${emp.id}" data-name="${escapeHtml(emp.name)}">Delete</button>
                 </div>
             </td>
         </tr>`;
     }).join("");
 
-    // Event delegation — avoids id-as-string interpolation in onclick attributes
     tbody.querySelectorAll(".tbl-btn--view").forEach(btn => {
         btn.addEventListener("click", () => openViewModal(Number(btn.dataset.id)));
     });
@@ -260,51 +255,31 @@ function setupPagination() {
     if (!filteredEmployees.length) return;
 
     const totalPages = Math.ceil(filteredEmployees.length / employeesPerPage);
-    if (totalPages <= 1) return;            // no controls needed for a single page
+    if (totalPages <= 1) return;
 
-    // Prev button
-    const prevBtn = document.createElement("button");
+    const prevBtn       = document.createElement("button");
     prevBtn.textContent = "← Prev";
     prevBtn.className   = "page-btn";
     prevBtn.disabled    = currentPage === 1;
-    prevBtn.onclick     = () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderEmployees(currentPage);
-            setupPagination();
-        }
-    };
+    prevBtn.onclick     = () => { if (currentPage > 1) { currentPage--; renderEmployees(currentPage); setupPagination(); } };
     pagination.appendChild(prevBtn);
 
-    // Numbered page buttons
     for (let i = 1; i <= totalPages; i++) {
-        const btn     = document.createElement("button");
+        const btn       = document.createElement("button");
         btn.textContent = i;
         btn.className   = i === currentPage ? "page-btn active-page" : "page-btn";
-        btn.onclick     = () => {
-            currentPage = i;
-            renderEmployees(currentPage);
-            setupPagination();
-        };
+        btn.onclick     = () => { currentPage = i; renderEmployees(currentPage); setupPagination(); };
         pagination.appendChild(btn);
     }
 
-    // Next button
-    const nextBtn = document.createElement("button");
+    const nextBtn       = document.createElement("button");
     nextBtn.textContent = "Next →";
     nextBtn.className   = "page-btn";
     nextBtn.disabled    = currentPage === totalPages;
-    nextBtn.onclick     = () => {
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderEmployees(currentPage);
-            setupPagination();
-        }
-    };
+    nextBtn.onclick     = () => { if (currentPage < totalPages) { currentPage++; renderEmployees(currentPage); setupPagination(); } };
     pagination.appendChild(nextBtn);
 }
 
-// ── Per-page selector (optional — wire up a <select> in index.html) ──
 function changeEmployeesPerPage(val) {
     employeesPerPage = parseInt(val);
     currentPage      = 1;
@@ -317,33 +292,16 @@ let sortKey = null;
 let sortDir = "asc";
 
 function sortTable(key) {
-    if (sortKey === key) {
-        sortDir = sortDir === "asc" ? "desc" : "asc";
-    } else {
-        sortKey = key;
-        sortDir = "asc";
-    }
+    if (sortKey === key) { sortDir = sortDir === "asc" ? "desc" : "asc"; }
+    else                 { sortKey = key; sortDir = "asc"; }
 
     filteredEmployees.sort((a, b) => {
         let valA, valB;
-
-        if (key === "age") {
-            valA = a.age ?? calculateAge(a.dateOfBirth);
-            valB = b.age ?? calculateAge(b.dateOfBirth);
-        } else if (key === "salary") {
-            valA = a.salary;
-            valB = b.salary;
-        } else if (key === "dateOfBirth") {
-            valA = new Date(a.dateOfBirth);
-            valB = new Date(b.dateOfBirth);
-        } else if (key === "department") {
-            valA = (a.department?.name ?? "").toLowerCase();
-            valB = (b.department?.name ?? "").toLowerCase();
-        } else {
-            valA = (a[key] ?? "").toString().toLowerCase();
-            valB = (b[key] ?? "").toString().toLowerCase();
-        }
-
+        if (key === "age")          { valA = a.age ?? calculateAge(a.dateOfBirth); valB = b.age ?? calculateAge(b.dateOfBirth); }
+        else if (key === "salary")  { valA = a.salary; valB = b.salary; }
+        else if (key === "dateOfBirth") { valA = new Date(a.dateOfBirth); valB = new Date(b.dateOfBirth); }
+        else if (key === "department") { valA = (a.department?.name ?? "").toLowerCase(); valB = (b.department?.name ?? "").toLowerCase(); }
+        else { valA = (a[key] ?? "").toString().toLowerCase(); valB = (b[key] ?? "").toString().toLowerCase(); }
         if (valA < valB) return sortDir === "asc" ? -1 : 1;
         if (valA > valB) return sortDir === "asc" ?  1 : -1;
         return 0;
@@ -356,16 +314,12 @@ function sortTable(key) {
 }
 
 function updateSortArrows() {
-    const keys = ["employeeId", "name", "dateOfBirth", "age", "department", "salary"];
-    keys.forEach(k => {
+    ["employeeId", "name", "dateOfBirth", "age", "department", "salary"].forEach(k => {
         const el = document.getElementById(`sort-${k}`);
         if (!el) return;
         el.className   = "sort-arrow";
         el.textContent = "↕";
-        if (k === sortKey) {
-            el.classList.add(sortDir);
-            el.textContent = sortDir === "asc" ? "↑" : "↓";
-        }
+        if (k === sortKey) { el.classList.add(sortDir); el.textContent = sortDir === "asc" ? "↑" : "↓"; }
     });
 }
 
@@ -374,49 +328,33 @@ async function openViewModal(id) {
     const modal = document.getElementById("viewModal");
     const body  = document.getElementById("viewModalBody");
 
-    // Show modal with loading state
-    body.innerHTML = `<p style="text-align:center;color:var(--muted);padding:2rem 0">Loading…</p>`;
+    body.innerHTML = `<p style="text-align:center;color:var(--muted);padding:2rem 0">${MSG.LOADING_EMPLOYEE}</p>`;
     modal.style.display = "flex";
 
     try {
-        const res = await fetch(`${API_BASE_URL}/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch employee");
+        const res = await fetch(`${API_EMPLOYEES}/${id}`);
+        if (!res.ok) throw new Error(MSG.EMP_LOAD_FAIL);
         const emp = await res.json();
         const age = emp.age ?? calculateAge(emp.dateOfBirth);
 
         body.innerHTML = `
-            <div class="view-field">
-                <span class="view-label">Employee ID</span>
-                <span class="view-value">${emp.employeeId}</span>
-            </div>
-            <div class="view-field">
-                <span class="view-label">Full Name</span>
-                <span class="view-value">${emp.name}</span>
-            </div>
-            <div class="view-field">
-                <span class="view-label">Date of Birth</span>
-                <span class="view-value">${formatDate(emp.dateOfBirth)}</span>
-            </div>
-            <div class="view-field">
-                <span class="view-label">Age</span>
-                <span class="view-value">${age} years old</span>
-            </div>
+            <div class="view-field"><span class="view-label">Employee ID</span><span class="view-value">${emp.employeeId}</span></div>
+            <div class="view-field"><span class="view-label">Full Name</span><span class="view-value">${emp.name}</span></div>
+            <div class="view-field"><span class="view-label">Date of Birth</span><span class="view-value">${formatDate(emp.dateOfBirth)}</span></div>
+            <div class="view-field"><span class="view-label">Age</span><span class="view-value">${age} years old</span></div>
             <div class="view-field">
                 <span class="view-label">Department</span>
                 <span class="view-value">
                     <span class="dept-badge dept-badge--${(emp.department?.name ?? "").toLowerCase()}">${emp.department?.name ?? "—"}</span>
                 </span>
             </div>
-            <div class="view-field">
-                <span class="view-label">Salary</span>
-                <span class="view-value view-value--salary">₱${emp.salary.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </div>
+            <div class="view-field"><span class="view-label">Salary</span><span class="view-value view-value--salary">₱${emp.salary.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
             <div class="view-modal-actions">
-                <a href="edit-employee.html?id=${emp.id}" class="btn-action btn-action--primary" style="font-size:0.82rem;padding:0.5rem 1.1rem">Edit Employee</a>
+                <a href="${PAGE_EDIT_EMP}?id=${emp.id}" class="btn-action btn-action--primary" style="font-size:0.82rem;padding:0.5rem 1.1rem">Edit Employee</a>
             </div>`;
     } catch (err) {
         console.error(err);
-        body.innerHTML = `<p style="text-align:center;color:var(--error);padding:2rem 0">Failed to load employee data.</p>`;
+        body.innerHTML = `<p style="text-align:center;color:var(--error);padding:2rem 0">${MSG.EMP_LOAD_FAIL}</p>`;
     }
 }
 
@@ -436,18 +374,18 @@ function closeDeleteModal() {
 
 async function deleteEmployee(id) {
     try {
-        const res = await fetch(`${API_BASE_URL}/${id}`, { method: "DELETE" });
+        const res = await fetch(`${API_EMPLOYEES}/${id}`, { method: "DELETE" });
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Failed to delete");
+            throw new Error(err.message || MSG.EMP_DELETE_FAIL);
         }
         closeDeleteModal();
-        showToast("Employee deleted successfully.", "success");
+        showToast(MSG.EMP_DELETE_SUCCESS, "success");
         await loadEmployees();
         await loadGlobalStatistics();
     } catch (err) {
         console.error(err);
-        showToast(err.message || "Failed to delete employee.", "error");
+        showToast(err.message || MSG.EMP_DELETE_FAIL, "error");
     }
 }
 
@@ -457,7 +395,7 @@ function showTableLoading() {
     const tableEl = document.getElementById("employeeTable");
     const emptyEl = document.getElementById("emptyState");
     emptyEl.style.display = "none";
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-loading">Loading employees…</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-loading">${MSG.LOADING_EMPLOYEES}</td></tr>`;
     tableEl.style.display = "table";
 }
 
@@ -485,77 +423,47 @@ function calculateAge(dob) {
 
 function escapeHtml(str) {
     if (!str) return "";
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 function showToast(msg, type = "success") {
-    const toast = document.createElement("div");
+    const toast       = document.createElement("div");
     toast.className   = `toast toast--${type}`;
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => toast.classList.add("toast--visible"), 10);
-    setTimeout(() => {
-        toast.classList.remove("toast--visible");
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => { toast.classList.remove("toast--visible"); setTimeout(() => toast.remove(), 300); }, 3000);
 }
-// ── Export CSV — open choice modal ───────────────────────────
+
+// ── Export CSV ────────────────────────────────────────────────
 function exportCSV() {
-    if (!allEmployees.length) {
-        showToast("No employees to export.", "error");
-        return;
-    }
+    if (!allEmployees.length) { showToast(MSG.NO_EMPLOYEES_EXPORT, "error"); return; }
 
     const isFiltered = filteredEmployees.length < allEmployees.length;
+    document.getElementById("exportAllCount").textContent  = `All Employees (${allEmployees.length})`;
+    document.getElementById("exportViewCount").textContent = `Current View (${filteredEmployees.length})`;
 
-    // Update option labels with live counts
-    document.getElementById("exportAllCount").textContent =
-        `All Employees (${allEmployees.length})`;
-    document.getElementById("exportViewCount").textContent =
-        `Current View (${filteredEmployees.length})`;
-
-    // Disable "Current View" option when no filters are active — it would
-    // be identical to "Export All", so there is no point offering it
-    const viewBtn = document.getElementById("exportViewBtn");
+    const viewBtn  = document.getElementById("exportViewBtn");
     const viewNote = document.getElementById("exportViewNote");
-    if (isFiltered) {
-        viewBtn.disabled = false;
-        viewBtn.style.opacity = "1";
-        viewNote.style.display = "none";
-    } else {
-        viewBtn.disabled = true;
-        viewBtn.style.opacity = "0.45";
-        viewNote.style.display = "block";
-    }
+    if (isFiltered) { viewBtn.disabled = false; viewBtn.style.opacity = "1"; viewNote.style.display = "none"; }
+    else            { viewBtn.disabled = true;  viewBtn.style.opacity = "0.45"; viewNote.style.display = "block"; }
 
     document.getElementById("exportModal").style.display = "flex";
 }
 
-function closeExportModal() {
-    document.getElementById("exportModal").style.display = "none";
-}
+function closeExportModal() { document.getElementById("exportModal").style.display = "none"; }
+function exportAll()        { closeExportModal(); downloadCSV(allEmployees, "employees_all"); }
 
-// ── Export all employees ──────────────────────────────────────
-function exportAll() {
-    closeExportModal();
-    downloadCSV(allEmployees, "employees_all");
-}
-
-// ── Export current filtered/sorted view ──────────────────────
 function exportCurrentView() {
-    if (!filteredEmployees.length) {
-        showToast("No employees in the current view.", "error");
-        return;
-    }
+    if (!filteredEmployees.length) { showToast(MSG.NO_EMPLOYEES_VIEW, "error"); return; }
     closeExportModal();
     downloadCSV(filteredEmployees, "employees_view");
 }
 
-// ── Shared CSV download helper ────────────────────────────────
 function downloadCSV(employees, filenamePrefix) {
     const headers = ["employeeId", "name", "dateOfBirth", "department", "salary"];
-    const rows = employees.map(emp => [
+    const rows    = employees.map(emp => [
         emp.employeeId,
         `"${(emp.name || "").replace(/"/g, '""')}"`,
         emp.dateOfBirth,
@@ -571,10 +479,10 @@ function downloadCSV(employees, filenamePrefix) {
     a.download = `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast(`Exported ${employees.length} employee${employees.length !== 1 ? "s" : ""} successfully.`, "success");
+    showToast(MSG.EXPORT_SUCCESS(employees.length), "success");
 }
 
-// ── Import CSV — modal open/close ─────────────────────────────
+// ── Import CSV ────────────────────────────────────────────────
 let importFile = null;
 
 function openImportModal() {
@@ -591,50 +499,44 @@ function openImportModal() {
     document.getElementById("importModal").style.display     = "flex";
 }
 
-function closeImportModal() {
-    document.getElementById("importModal").style.display = "none";
-}
+function closeImportModal() { document.getElementById("importModal").style.display = "none"; }
 
-function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) setImportFile(file);
-}
+function handleFileSelect(e) { const file = e.target.files[0]; if (file) setImportFile(file); }
 
 function handleFileDrop(e) {
     e.preventDefault();
     document.getElementById("importDropZone").classList.remove("dragover");
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith(".csv")) setImportFile(file);
-    else showToast("Please drop a .csv file.", "error");
+    else showToast(MSG.DROP_CSV_ONLY, "error");
 }
 
 function setImportFile(file) {
     importFile = file;
-    document.getElementById("importDropZone").style.display  = "none";
-    document.getElementById("importPreview").style.display   = "block";
-    document.getElementById("importFileName").textContent    = file.name;
+    document.getElementById("importDropZone").style.display = "none";
+    document.getElementById("importPreview").style.display  = "block";
+    document.getElementById("importFileName").textContent   = file.name;
     const btn = document.getElementById("importBtn");
     btn.disabled    = false;
     btn.textContent = "Upload";
     btn.onclick     = runImport;
-    document.getElementById("importLog").style.display       = "none";
-    document.getElementById("importLogContent").innerHTML    = "";
+    document.getElementById("importLog").style.display      = "none";
+    document.getElementById("importLogContent").innerHTML   = "";
 }
 
 function clearImportFile() {
     importFile = null;
-    document.getElementById("csvFileInput").value            = "";
-    document.getElementById("importDropZone").style.display  = "block";
-    document.getElementById("importPreview").style.display   = "none";
+    document.getElementById("csvFileInput").value           = "";
+    document.getElementById("importDropZone").style.display = "block";
+    document.getElementById("importPreview").style.display  = "none";
     const btn = document.getElementById("importBtn");
     btn.disabled    = true;
     btn.textContent = "Upload";
     btn.onclick     = runImport;
-    document.getElementById("importLog").style.display       = "none";
-    document.getElementById("importLogContent").innerHTML    = "";
+    document.getElementById("importLog").style.display      = "none";
+    document.getElementById("importLogContent").innerHTML   = "";
 }
 
-// ── Import CSV — run ──────────────────────────────────────────
 async function runImport() {
     if (!importFile) return;
 
@@ -650,14 +552,12 @@ async function runImport() {
     const text  = await importFile.text();
     const lines = text.trim().split(/\r?\n/);
 
-    // ── Empty file ────────────────────────────────────────────
     if (lines.length < 2) {
-        logEl.innerHTML = `<div class="log-error">✗ File is empty or has no data rows.</div>`;
+        logEl.innerHTML = `<div class="log-error">✗ ${MSG.IMPORT_EMPTY_FILE}</div>`;
         setImportBtnState("reupload");
         return;
     }
 
-    // ── Validate headers ──────────────────────────────────────
     const headerRaw = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
     const idx = {
         employeeId:  headerRaw.indexOf("employeeid"),
@@ -671,19 +571,17 @@ async function runImport() {
         logEl.innerHTML = `
             <div class="log-error" style="margin-bottom:0.35rem">✗ Missing required column${missing.length > 1 ? "s" : ""}:</div>
             ${missing.map(c => `<div class="log-skip" style="padding-left:1rem">— ${c}</div>`).join("")}
-            <div class="log-skip" style="margin-top:0.5rem;font-style:italic">Fix the column headers and re-upload your file.</div>`;
+            <div class="log-skip" style="margin-top:0.5rem;font-style:italic">${MSG.IMPORT_FIX_HEADERS}</div>`;
         setImportBtnState("reupload");
         return;
     }
 
-    // ── Process rows ──────────────────────────────────────────
     let ok = 0, skipped = 0, errors = 0;
 
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Parse quoted CSV fields
         const cols = [];
         let inQ = false, cur = "";
         for (const ch of line) {
@@ -702,7 +600,6 @@ async function runImport() {
             employeeId:  cols[idx.employeeId]?.replace(/^"|"$/g, "").trim(),
             name:        cols[idx.name]?.replace(/^"|"$/g, "").trim(),
             dateOfBirth: cols[idx.dateOfBirth]?.replace(/^"|"$/g, "").trim(),
-            // Send the Department object expected by the backend ManyToOne mapping
             department:  deptObj ? { id: deptObj.id } : null,
             salary:      parseFloat(cols[idx.salary])
         };
@@ -710,14 +607,13 @@ async function runImport() {
         const badFields = [];
         if (!emp.employeeId)  badFields.push("employeeId");
         if (!emp.name)        badFields.push("name");
-        if (!emp.dateOfBirth) {
-            badFields.push("dateOfBirth");
-        } else {
+        if (!emp.dateOfBirth) { badFields.push("dateOfBirth"); }
+        else {
             const age = calculateAge(emp.dateOfBirth);
             if (age < 18 || age > 100)
                 badFields.push(`dateOfBirth (age ${age} is outside the allowed range of 18–100)`);
         }
-        if (!emp.department)  badFields.push(`department (unknown: "${deptName}")`);
+        if (!emp.department)   badFields.push(`department (unknown: "${deptName}")`);
         if (isNaN(emp.salary)) badFields.push("salary");
 
         if (badFields.length) {
@@ -728,19 +624,13 @@ async function runImport() {
         }
 
         try {
-            const res = await fetch(API_BASE_URL, {
-                method: "POST",
+            const res = await fetch(API_EMPLOYEES, {
+                method:  "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(emp)
+                body:    JSON.stringify(emp)
             });
-            if (res.ok) {
-                logEl.innerHTML += `<div class="log-ok">Row ${i} ✓ — ${emp.name} (${emp.employeeId})</div>`;
-                ok++;
-            } else {
-                const err = await res.json();
-                logEl.innerHTML += `<div class="log-error">Row ${i} ✗ — ${emp.employeeId}: ${err.message || "failed"}</div>`;
-                errors++;
-            }
+            if (res.ok) { logEl.innerHTML += `<div class="log-ok">Row ${i} ✓ — ${emp.name} (${emp.employeeId})</div>`; ok++; }
+            else        { const err = await res.json(); logEl.innerHTML += `<div class="log-error">Row ${i} ✗ — ${emp.employeeId}: ${err.message || "failed"}</div>`; errors++; }
         } catch {
             logEl.innerHTML += `<div class="log-error">Row ${i} ✗ — network error</div>`;
             errors++;
@@ -749,7 +639,6 @@ async function runImport() {
         logEl.scrollTop = logEl.scrollHeight;
     }
 
-    // ── Summary bar ───────────────────────────────────────────
     const hasIssues = skipped > 0 || errors > 0;
     logEl.innerHTML += `
         <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -768,15 +657,22 @@ async function runImport() {
     }
 }
 
-// ── Import button state helper ────────────────────────────────
 function setImportBtnState(state) {
     const btn = document.getElementById("importBtn");
     btn.disabled = false;
-    if (state === "reupload") {
-        btn.textContent = "Re-upload File";
-        btn.onclick     = () => { clearImportFile(); };
-    } else {
-        btn.textContent = "Done";
-        btn.onclick     = closeImportModal;
-    }
+    if (state === "reupload") { btn.textContent = "Re-upload File"; btn.onclick = () => { clearImportFile(); }; }
+    else                      { btn.textContent = "Done";           btn.onclick = closeImportModal; }
 }
+
+// Expose to HTML onclick attributes
+window.closeViewModal   = closeViewModal;
+window.closeDeleteModal = closeDeleteModal;
+window.closeExportModal = closeExportModal;
+window.exportAll        = exportAll;
+window.exportCurrentView = exportCurrentView;
+window.exportCSV        = exportCSV;
+window.openImportModal  = openImportModal;
+window.closeImportModal = closeImportModal;
+window.handleFileSelect = handleFileSelect;
+window.handleFileDrop   = handleFileDrop;
+window.clearImportFile  = clearImportFile;

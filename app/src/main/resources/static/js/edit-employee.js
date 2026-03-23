@@ -1,24 +1,22 @@
 // edit-employee.js
-
-const API_BASE_URL = "http://localhost:8080/api/employees";
-const DEPT_API_URL = "http://localhost:8080/api/departments";
+import { API_EMPLOYEES, API_DEPTS, PAGE_LOGIN, PAGE_DASHBOARD, MSG } from "./config.js";
 
 // Auth guard
 const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("currentUser")); }
     catch { return null; }
 })();
-if (!currentUser) window.location.href = "login.html";
+if (!currentUser) window.location.href = PAGE_LOGIN;
 
-let employeeDbId = null; // the PK used in the PUT URL
+let employeeDbId = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
     employeeDbId = params.get("id");
 
     if (!employeeDbId) {
-        alert("No employee ID provided.");
-        window.location.href = "index.html";
+        alert(MSG.EDIT_NO_ID);
+        window.location.href = PAGE_DASHBOARD;
         return;
     }
 
@@ -27,11 +25,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("employeeForm").addEventListener("submit", handleSubmit);
 });
 
-// ── Populate department dropdown from API ─────────────────────────────────────
+// ── Populate department dropdown ──────────────────────────────────────────────
 async function loadDepartments() {
     const select = document.getElementById("department");
     try {
-        const res = await fetch(DEPT_API_URL);
+        const res = await fetch(API_DEPTS);
         if (!res.ok) throw new Error();
         const departments = await res.json();
         select.innerHTML = `<option value="">Select Department</option>` +
@@ -39,14 +37,14 @@ async function loadDepartments() {
                 `<option value="${d.id}">${escapeHtml(d.name)}</option>`
             ).join("");
     } catch {
-        select.innerHTML = `<option value="">⚠ Failed to load departments</option>`;
+        select.innerHTML = `<option value="">${MSG.DEPT_LOAD_DROPDOWN_FAIL}</option>`;
     }
 }
 
 async function loadEmployee() {
     try {
-        const res = await fetch(`${API_BASE_URL}/${employeeDbId}`);
-        if (!res.ok) throw new Error("Employee not found");
+        const res = await fetch(`${API_EMPLOYEES}/${employeeDbId}`);
+        if (!res.ok) throw new Error(MSG.EMP_LOAD_FAIL);
         const emp = await res.json();
 
         document.getElementById("employeeId").value  = emp.employeeId;
@@ -54,19 +52,18 @@ async function loadEmployee() {
         document.getElementById("dateOfBirth").value = emp.dateOfBirth;
         document.getElementById("salary").value      = emp.salary;
 
-        // Pre-select the employee's current department by matching its id
         if (emp.department) {
             document.getElementById("department").value = emp.department.id;
         }
 
-        document.getElementById("pageSubtitle").textContent = `Editing: ${emp.name}`;
+        document.getElementById("pageSubtitle").textContent   = `Editing: ${emp.name}`;
         document.getElementById("loadingState").style.display  = "none";
         document.getElementById("formContainer").style.display = "block";
 
     } catch (err) {
         console.error(err);
-        showMessage("Failed to load employee data.", "error");
-        setTimeout(() => window.location.href = "index.html", 2000);
+        showMessage(MSG.EMP_LOAD_FAIL, "error");
+        setTimeout(() => window.location.href = PAGE_DASHBOARD, 2000);
     }
 }
 
@@ -74,8 +71,8 @@ async function handleSubmit(e) {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const deptRaw = document.getElementById("department").value;
-    const deptId  = deptRaw ? Number(deptRaw) : null;
+    const deptRaw  = document.getElementById("department").value;
+    const deptId   = deptRaw ? Number(deptRaw) : null;
     const employee = {
         employeeId:  document.getElementById("employeeId").value.trim(),
         name:        document.getElementById("name").value.trim(),
@@ -93,23 +90,23 @@ async function handleSubmit(e) {
     spinner.style.display    = "inline-block";
 
     try {
-        const res = await fetch(`${API_BASE_URL}/${employeeDbId}`, {
-            method: "PUT",
+        const res = await fetch(`${API_EMPLOYEES}/${employeeDbId}`, {
+            method:  "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(employee)
+            body:    JSON.stringify(employee)
         });
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.message || "Failed to update employee");
+            throw new Error(err.message || MSG.EMP_UPDATE_FAIL);
         }
 
-        showMessage("Employee updated successfully!", "success");
-        setTimeout(() => window.location.href = "index.html", 1800);
+        showMessage(MSG.EMP_UPDATE_SUCCESS, "success");
+        setTimeout(() => window.location.href = PAGE_DASHBOARD, 1800);
 
     } catch (err) {
         console.error(err);
-        showMessage(err.message || "Failed to update employee. Please try again.", "error");
+        showMessage(err.message || MSG.EMP_UPDATE_FAIL, "error");
         submitBtn.disabled       = false;
         submitText.style.display = "inline";
         spinner.style.display    = "none";
@@ -118,7 +115,6 @@ async function handleSubmit(e) {
 
 function validateForm() {
     let isValid = true;
-
     const fields = [
         { id: "employeeId",  errId: "employeeIdError",  test: v => v.trim() !== "" },
         { id: "name",        errId: "nameError",        test: v => v.trim() !== "" },
@@ -166,6 +162,6 @@ function showMessage(text, type) {
 }
 
 function escapeHtml(str) {
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }

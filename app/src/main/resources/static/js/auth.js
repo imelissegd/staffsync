@@ -1,41 +1,44 @@
 // auth.js — Login & Registration
-
-const API = "http://localhost:8080/api";
+import {
+    URL_AUTH_REGISTER, URL_AUTH_LOGIN,
+    PAGE_LOGIN, PAGE_DASHBOARD,
+    MSG
+} from "./config.js";
 
 // ── Registration ──────────────────────────────────────────────
 document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector("button[type=submit]");
+    const btn      = e.target.querySelector("button[type=submit]");
     const username = document.getElementById("regUsername").value.trim();
     const password = document.getElementById("regPassword").value;
 
-    setLoading(btn, true, "Registering…");
+    setLoading(btn, true, MSG.AUTH_REGISTERING);
     clearError();
 
     if (password.length < 6) {
-        showBanner("Password must be at least 6 characters.", "error");
+        showBanner(MSG.AUTH_PASSWORD_TOO_SHORT, "error");
         setLoading(btn, false, "Sign Up");
         return;
     }
 
     try {
-        const res = await fetch(`${API}/auth/register`, {
-            method: "POST",
+        const res = await fetch(URL_AUTH_REGISTER, {
+            method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
+            body:    JSON.stringify({ username, password })
         });
 
         const data = await res.json();
 
         if (res.ok && data.success !== false) {
-            showBanner("Account created! Redirecting to login…", "success");
-            setTimeout(() => window.location.href = "login.html", 1500);
+            showBanner(MSG.AUTH_REGISTER_SUCCESS, "success");
+            setTimeout(() => window.location.href = PAGE_LOGIN, 1500);
         } else {
-            showBanner(data.message || "Registration failed.", "error");
+            showBanner(data.message || MSG.AUTH_REGISTER_FAIL, "error");
         }
     } catch (err) {
         console.error(err);
-        showBanner("Could not reach the server. Make sure the backend is running.", "error");
+        showBanner(MSG.AUTH_SERVER_UNREACHABLE, "error");
     } finally {
         setLoading(btn, false, "Sign Up");
     }
@@ -44,18 +47,18 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
 // ── Login ─────────────────────────────────────────────────────
 document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector("button[type=submit]");
+    const btn      = e.target.querySelector("button[type=submit]");
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value;
 
-    setLoading(btn, true, "Logging in…");
+    setLoading(btn, true, MSG.AUTH_LOGGING_IN);
     clearError();
 
     try {
-        const res = await fetch(`${API}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
+        const res = await fetch(URL_AUTH_LOGIN, {
+            method:      "POST",
+            headers:     { "Content-Type": "application/json" },
+            body:        JSON.stringify({ username, password }),
             credentials: "include"
         });
 
@@ -64,15 +67,15 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
         if (res.ok && data.success !== false) {
             localStorage.setItem("currentUser", JSON.stringify({
                 username: data.username ?? username,
-                role: data.role ?? "ROLE_USER"
+                role:     data.role ?? "ROLE_USER"
             }));
-            window.location.href = "index.html";
+            window.location.href = PAGE_DASHBOARD;
         } else {
-            showBanner(data.message || "Invalid username or password.", "error");
+            showBanner(data.message || MSG.AUTH_LOGIN_FAIL, "error");
         }
     } catch (err) {
         console.error(err);
-        showBanner("Could not reach the server. Make sure the backend is running.", "error");
+        showBanner(MSG.AUTH_SERVER_UNREACHABLE, "error");
     } finally {
         setLoading(btn, false, "Login");
     }
@@ -81,7 +84,7 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
 // ── Helpers ───────────────────────────────────────────────────
 function setLoading(btn, loading, label) {
     if (!btn) return;
-    btn.disabled = loading;
+    btn.disabled    = loading;
     btn.textContent = label;
 }
 
@@ -107,7 +110,6 @@ function showBanner(msg, type) {
         border: 1.5px solid ${type === "success" ? "rgba(46,125,82,0.25)" : "rgba(192,57,43,0.25)"};
     `;
     banner.textContent = msg;
-    // Insert before the form
     const form = card.querySelector("form");
     card.insertBefore(banner, form);
 }

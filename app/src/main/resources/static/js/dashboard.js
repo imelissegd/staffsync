@@ -9,7 +9,7 @@ import {
 let allEmployees      = [];
 let filteredEmployees = [];
 let currentPage       = 1;
-let employeesPerPage  = 10;
+let employeesPerPage  = 5;
 let allDepartments    = [];
 
 // ── Auth guard ────────────────────────────────────────────────

@@ -1,12 +1,13 @@
 // departments.js
-import { API_DEPTS, PAGE_LOGIN, MSG } from "./config.js";
+import { API_DEPTS, PAGE_LOGIN, PAGE_DASHBOARD, ROLE_ADMIN, MSG } from "./config.js";
 
-// Auth guard
+// Auth guard — admin only
 const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("currentUser")); }
     catch { return null; }
 })();
-if (!currentUser) window.location.href = PAGE_LOGIN;
+if (!currentUser)                    window.location.href = PAGE_LOGIN;
+if (currentUser.role !== ROLE_ADMIN) window.location.href = PAGE_DASHBOARD;
 
 let departments     = [];
 let pendingDeleteId = null;

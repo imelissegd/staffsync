@@ -1,15 +1,17 @@
 package com.mgd.employee_mgmt.service;
 
+import java.util.NoSuchElementException;
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
 import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -27,13 +29,22 @@ class EmployeeServiceTest {
     @Mock private EmployeeRepository   employeeRepository;
     @Mock private DepartmentRepository departmentRepository;
 
-    @InjectMocks private EmployeeService employeeService;
+    private EmployeeService employeeService;
 
     private Department sampleDept;
     private Employee   sampleEmployee;
 
     @BeforeEach
     void setUp() {
+        ReloadableResourceBundleMessageSource source =
+                new ReloadableResourceBundleMessageSource();
+        source.setBasename("classpath:messages");
+        source.setDefaultEncoding("UTF-8");
+        MessageUtil messageUtil = new MessageUtil(source);
+
+        employeeService = new EmployeeService(
+                employeeRepository, departmentRepository, messageUtil);
+
         sampleDept = new Department("Engineering", "Engineers");
         sampleDept.setId(1L);
 
@@ -62,8 +73,6 @@ class EmployeeServiceTest {
 
     @Test
     void saveEmployee_throwsWhenDuplicateEmployeeId() {
-        // validateEmployee() runs first and checks departmentRepository — must be stubbed
-        // so validation passes and the duplicate-ID check is actually reached
         when(departmentRepository.existsById(1L)).thenReturn(true);
         when(employeeRepository.existsByEmployeeId("EMP001")).thenReturn(true);
 
@@ -78,24 +87,36 @@ class EmployeeServiceTest {
     void saveEmployee_throwsWhenEmployeeIdBlank() {
         sampleEmployee.setEmployeeId("  ");
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("Employee ID is required"));
     }
 
     @Test
     void saveEmployee_throwsWhenNameBlank() {
         sampleEmployee.setName("");
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("Employee name is required"));
     }
 
     @Test
     void saveEmployee_throwsWhenDateOfBirthNull() {
         sampleEmployee.setDateOfBirth(null);
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("Date of birth is required"));
+    }
+
+    @Test
+    void saveEmployee_throwsWhenAgeOutOfRange() {
+        sampleEmployee.setDateOfBirth(LocalDate.now().minusYears(10)); // age 10 — too young
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("age must be between 18 and 100"));
     }
 
     @Test
@@ -104,28 +125,36 @@ class EmployeeServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
-
         assertTrue(ex.getMessage().contains("Department is required"));
     }
 
     @Test
     void saveEmployee_throwsWhenDepartmentDoesNotExist() {
-        // validateEmployee() reaches the department existence check before the duplicate-ID check,
-        // so only departmentRepository needs to be stubbed here
         when(departmentRepository.existsById(1L)).thenReturn(false);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
-
         assertTrue(ex.getMessage().contains("does not exist"));
     }
 
     @Test
     void saveEmployee_throwsWhenSalaryZero() {
         sampleEmployee.setSalary(0.0);
+        when(departmentRepository.existsById(1L)).thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("Salary must be greater than 0"));
+    }
+
+    @Test
+    void saveEmployee_throwsWhenSalaryNegative() {
+        sampleEmployee.setSalary(-100.0);
+        when(departmentRepository.existsById(1L)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> employeeService.saveEmployee(sampleEmployee));
+        assertTrue(ex.getMessage().contains("Salary must be greater than 0"));
     }
 
     // ── updateEmployee ────────────────────────────────────────────────────────
@@ -153,10 +182,24 @@ class EmployeeServiceTest {
     void updateEmployee_throwsWhenNotFound() {
         when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> employeeService.updateEmployee(99L, sampleEmployee));
+        assertTrue(ex.getMessage().contains("Employee not found with id"));
+        assertTrue(ex.getMessage().contains("99"));
+    }
 
-        assertTrue(ex.getMessage().contains("Employee not found with id: 99"));
+    @Test
+    void updateEmployee_throwsWhenDuplicateEmployeeId() {
+        Employee updated = new Employee("EMP002", "Jane Doe",
+                LocalDate.of(1992, 3, 20), sampleDept, 80000.0);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(departmentRepository.existsById(1L)).thenReturn(true);
+        when(employeeRepository.existsByEmployeeId("EMP002")).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> employeeService.updateEmployee(1L, updated));
+        assertTrue(ex.getMessage().contains("already exists"));
     }
 
     // ── deleteEmployee ────────────────────────────────────────────────────────
@@ -174,10 +217,10 @@ class EmployeeServiceTest {
     void deleteEmployee_throwsWhenNotFound() {
         when(employeeRepository.existsById(99L)).thenReturn(false);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> employeeService.deleteEmployee(99L));
-
-        assertTrue(ex.getMessage().contains("Employee not found with id: 99"));
+        assertTrue(ex.getMessage().contains("Employee not found with id"));
+        assertTrue(ex.getMessage().contains("99"));
     }
 
     // ── getEmployeeById ───────────────────────────────────────────────────────
@@ -196,8 +239,9 @@ class EmployeeServiceTest {
     void getEmployeeById_throwsWhenNotFound() {
         when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> employeeService.getEmployeeById(99L));
+        assertTrue(ex.getMessage().contains("Employee not found with id"));
     }
 
     // ── getEmployeeByEmployeeId ───────────────────────────────────────────────
@@ -216,8 +260,10 @@ class EmployeeServiceTest {
     void getEmployeeByEmployeeId_throwsWhenNotFound() {
         when(employeeRepository.findByEmployeeId("UNKNOWN")).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> employeeService.getEmployeeByEmployeeId("UNKNOWN"));
+        assertTrue(ex.getMessage().contains("Employee not found with employee ID"));
+        assertTrue(ex.getMessage().contains("UNKNOWN"));
     }
 
     // ── getAllEmployees ───────────────────────────────────────────────────────
@@ -250,14 +296,16 @@ class EmployeeServiceTest {
 
     @Test
     void searchEmployeesByName_throwsWhenBlank() {
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.searchEmployeesByName("  "));
+        assertTrue(ex.getMessage().contains("Search name cannot be empty"));
     }
 
     @Test
     void searchEmployeesByName_throwsWhenNull() {
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.searchEmployeesByName(null));
+        assertTrue(ex.getMessage().contains("Search name cannot be empty"));
     }
 
     // ── getEmployeesByDepartment ──────────────────────────────────────────────
@@ -276,21 +324,22 @@ class EmployeeServiceTest {
     void getEmployeesByDepartment_throwsWhenDepartmentNotFound() {
         when(departmentRepository.findByName("Finance")).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> employeeService.getEmployeesByDepartment("Finance"));
+        assertTrue(ex.getMessage().contains("Department not found with name"));
     }
 
     @Test
     void getEmployeesByDepartment_throwsWhenBlank() {
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> employeeService.getEmployeesByDepartment(""));
+        assertTrue(ex.getMessage().contains("Department name cannot be empty"));
     }
 
     // ── calculateAverageSalary ────────────────────────────────────────────────
 
     @Test
     void calculateAverageSalary_returnsCorrectAverage() {
-        // Service now delegates to the JPQL @Query method, not findAll()
         when(employeeRepository.calculateAverageSalary()).thenReturn(80000.0);
 
         assertEquals(80000.0, employeeService.calculateAverageSalary(), 0.01);
@@ -298,7 +347,6 @@ class EmployeeServiceTest {
 
     @Test
     void calculateAverageSalary_returnsZeroWhenEmpty() {
-        // JPA returns null from AVG when there are no rows; service maps null → 0.0
         when(employeeRepository.calculateAverageSalary()).thenReturn(null);
 
         assertEquals(0.0, employeeService.calculateAverageSalary());
@@ -336,7 +384,7 @@ class EmployeeServiceTest {
 
     @Test
     void getEmployeesOrderedByAge_returnsSortedList() {
-        Employee older = new Employee("EMP003", "Old Bob",
+        Employee older   = new Employee("EMP003", "Old Bob",
                 LocalDate.of(1960, 1, 1), sampleDept, 90000.0);
         Employee younger = new Employee("EMP004", "Young Sue",
                 LocalDate.of(2000, 6, 1), sampleDept, 60000.0);

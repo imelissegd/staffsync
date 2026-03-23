@@ -3,12 +3,14 @@ package com.mgd.employee_mgmt.service;
 import com.mgd.employee_mgmt.exception.InvalidCredentialsException;
 import com.mgd.employee_mgmt.model.User;
 import com.mgd.employee_mgmt.repository.UserRepository;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -20,18 +22,26 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserRepository  userRepository;
     @Mock private PasswordEncoder passwordEncoder;
-    @InjectMocks private UserService userService;
+
+    private UserService userService;
 
     private User sampleUser;
 
     @BeforeEach
     void setUp() {
-        sampleUser = new User("alice", "hashed_pw", "ROLE_USER");
+        ReloadableResourceBundleMessageSource source =
+                new ReloadableResourceBundleMessageSource();
+        source.setBasename("classpath:messages");
+        source.setDefaultEncoding("UTF-8");
+        MessageUtil messageUtil = new MessageUtil(source);
+
+        userService = new UserService(userRepository, passwordEncoder, messageUtil);
+        sampleUser  = new User("alice", "hashed_pw", "ROLE_USER");
     }
 
-    // ─── register ─────────────────────────────────────────────
+    // ─── register ──────────────────────────────────────────────────────────
 
     @Test
     void register_success() {
@@ -65,6 +75,13 @@ class UserServiceTest {
     }
 
     @Test
+    void register_throwsWhenPasswordTooShort() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.register("alice", "abc"));
+        assertTrue(ex.getMessage().contains("at least 6 characters"));
+    }
+
+    @Test
     void register_throwsWhenUsernameTaken() {
         when(userRepository.existsByUsername("alice")).thenReturn(true);
 
@@ -74,7 +91,7 @@ class UserServiceTest {
         verify(userRepository, never()).save(any());
     }
 
-    // ─── login ────────────────────────────────────────────────
+    // ─── login ─────────────────────────────────────────────────────────────
 
     @Test
     void login_success() {
@@ -90,8 +107,9 @@ class UserServiceTest {
     void login_throwsWhenUserNotFound() {
         when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
 
-        assertThrows(InvalidCredentialsException.class,
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class,
                 () -> userService.login("unknown", "pass"));
+        assertTrue(ex.getMessage().contains("Invalid username or password"));
     }
 
     @Test
@@ -99,7 +117,8 @@ class UserServiceTest {
         when(userRepository.findByUsername("alice")).thenReturn(Optional.of(sampleUser));
         when(passwordEncoder.matches("wrong", "hashed_pw")).thenReturn(false);
 
-        assertThrows(InvalidCredentialsException.class,
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class,
                 () -> userService.login("alice", "wrong"));
+        assertTrue(ex.getMessage().contains("Invalid username or password"));
     }
 }

@@ -3,12 +3,13 @@ package com.mgd.employee_mgmt.service;
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -24,12 +25,21 @@ class DepartmentServiceTest {
     @Mock private DepartmentRepository departmentRepository;
     @Mock private EmployeeRepository   employeeRepository;
 
-    @InjectMocks private DepartmentService departmentService;
+    private DepartmentService departmentService;
 
     private Department sampleDept;
 
     @BeforeEach
     void setUp() {
+        ReloadableResourceBundleMessageSource source =
+                new ReloadableResourceBundleMessageSource();
+        source.setBasename("classpath:messages");
+        source.setDefaultEncoding("UTF-8");
+        MessageUtil messageUtil = new MessageUtil(source);
+
+        departmentService = new DepartmentService(
+                departmentRepository, employeeRepository, messageUtil);
+
         sampleDept = new Department("Engineering", "Software engineers");
         sampleDept.setId(1L);
     }
@@ -91,7 +101,6 @@ class DepartmentServiceTest {
         List<Department> result = departmentService.getAllDepartments();
 
         assertEquals(2, result.size());
-        // Should be sorted alphabetically: Engineering, HR
         assertEquals("Engineering", result.get(0).getName());
         assertEquals("HR", result.get(1).getName());
     }
@@ -100,9 +109,7 @@ class DepartmentServiceTest {
     void getAllDepartments_returnsEmptyList() {
         when(departmentRepository.findAll()).thenReturn(List.of());
 
-        List<Department> result = departmentService.getAllDepartments();
-
-        assertTrue(result.isEmpty());
+        assertTrue(departmentService.getAllDepartments().isEmpty());
     }
 
     // ── getDepartmentById ──────────────────────────────────────────────────────
@@ -124,7 +131,8 @@ class DepartmentServiceTest {
         NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> departmentService.getDepartmentById(99L));
 
-        assertTrue(ex.getMessage().contains("Department not found with id: 99"));
+        assertTrue(ex.getMessage().contains("Department not found with id"));
+        assertTrue(ex.getMessage().contains("99"));
     }
 
     // ── getDepartmentByName ────────────────────────────────────────────────────
@@ -146,7 +154,8 @@ class DepartmentServiceTest {
         NoSuchElementException ex = assertThrows(NoSuchElementException.class,
                 () -> departmentService.getDepartmentByName("Finance"));
 
-        assertTrue(ex.getMessage().contains("Department not found with name: Finance"));
+        assertTrue(ex.getMessage().contains("Department not found with name"));
+        assertTrue(ex.getMessage().contains("Finance"));
     }
 
     // ── updateDepartment ──────────────────────────────────────────────────────
@@ -168,7 +177,6 @@ class DepartmentServiceTest {
 
     @Test
     void updateDepartment_sameName_doesNotThrowDuplicateError() {
-        // Updating with the same name should be allowed (case-insensitive compare)
         Department same = new Department("Engineering", "New description");
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(sampleDept));
         when(departmentRepository.save(any(Department.class))).thenReturn(sampleDept);

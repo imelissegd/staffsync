@@ -3,6 +3,7 @@ package com.mgd.employee_mgmt.service;
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,22 +16,25 @@ import java.util.NoSuchElementException;
 public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeRepository   employeeRepository;
+    private final MessageUtil          msg;
 
     @Autowired
     public DepartmentService(DepartmentRepository departmentRepository,
-                             EmployeeRepository employeeRepository) {
+                             EmployeeRepository employeeRepository,
+                             MessageUtil msg) {
         this.departmentRepository = departmentRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeRepository   = employeeRepository;
+        this.msg                  = msg;
     }
 
-    /** Create a new department. Name must be unique and non-blank. */
+    /** Create a new department — name must be unique and non-blank. */
     public Department createDepartment(Department department) {
         validateDepartment(department);
 
         if (departmentRepository.existsByName(department.getName().trim())) {
             throw new IllegalArgumentException(
-                    "Department with name '" + department.getName() + "' already exists");
+                    msg.get("department.name.duplicate", department.getName()));
         }
 
         department.setName(department.getName().trim());
@@ -51,7 +55,7 @@ public class DepartmentService {
     public Department getDepartmentById(Long id) {
         return departmentRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Department not found with id: " + id));
+                        msg.get("department.not.found.id", id)));
     }
 
     /** Return a single department by name. */
@@ -59,7 +63,7 @@ public class DepartmentService {
     public Department getDepartmentByName(String name) {
         return departmentRepository.findByName(name)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Department not found with name: " + name));
+                        msg.get("department.not.found.name", name)));
     }
 
     /** Update name and/or description of an existing department. */
@@ -68,11 +72,10 @@ public class DepartmentService {
 
         validateDepartment(updated);
 
-        // If the name is changing, ensure the new name is not already taken
         if (!existing.getName().equalsIgnoreCase(updated.getName().trim()) &&
                 departmentRepository.existsByName(updated.getName().trim())) {
             throw new IllegalArgumentException(
-                    "Department with name '" + updated.getName() + "' already exists");
+                    msg.get("department.name.duplicate", updated.getName()));
         }
 
         existing.setName(updated.getName().trim());
@@ -89,9 +92,7 @@ public class DepartmentService {
 
         if (employeeRepository.existsByDepartment(department)) {
             throw new IllegalStateException(
-                    "Cannot delete department '" + department.getName() +
-                            "' because it still has employees assigned to it. " +
-                            "Reassign or remove those employees first.");
+                    msg.get("department.delete.has.employees", department.getName()));
         }
 
         departmentRepository.delete(department);
@@ -101,7 +102,7 @@ public class DepartmentService {
 
     private void validateDepartment(Department department) {
         if (department.getName() == null || department.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Department name is required");
+            throw new IllegalArgumentException(msg.get("department.name.required"));
         }
     }
 }

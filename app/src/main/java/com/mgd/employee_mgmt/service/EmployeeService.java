@@ -4,6 +4,7 @@ import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.model.Employee;
 import com.mgd.employee_mgmt.repository.DepartmentRepository;
 import com.mgd.employee_mgmt.repository.EmployeeRepository;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,22 +14,21 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/**
- * Service class with business logic.
- * Demonstrates use of Collections (ArrayList, List).
- */
 @Service
 @Transactional
 public class EmployeeService {
 
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeRepository   employeeRepository;
     private final DepartmentRepository departmentRepository;
+    private final MessageUtil          msg;
 
     @Autowired
     public EmployeeService(EmployeeRepository employeeRepository,
-                           DepartmentRepository departmentRepository) {
-        this.employeeRepository = employeeRepository;
+                           DepartmentRepository departmentRepository,
+                           MessageUtil msg) {
+        this.employeeRepository   = employeeRepository;
         this.departmentRepository = departmentRepository;
+        this.msg                  = msg;
     }
 
     public Employee saveEmployee(Employee employee) {
@@ -36,7 +36,7 @@ public class EmployeeService {
 
         if (employeeRepository.existsByEmployeeId(employee.getEmployeeId())) {
             throw new IllegalArgumentException(
-                    "Employee with ID " + employee.getEmployeeId() + " already exists");
+                    msg.get("employee.id.duplicate", employee.getEmployeeId()));
         }
 
         return employeeRepository.save(employee);
@@ -45,15 +45,14 @@ public class EmployeeService {
     public Employee updateEmployee(Long id, Employee employee) {
         Employee existing = employeeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Employee not found with id: " + id));
+                        msg.get("employee.not.found.id", id)));
 
         validateEmployee(employee);
 
-        // If the employeeId is being changed, ensure the new one is not already taken
         if (!existing.getEmployeeId().equals(employee.getEmployeeId()) &&
                 employeeRepository.existsByEmployeeId(employee.getEmployeeId())) {
             throw new IllegalArgumentException(
-                    "Employee with ID " + employee.getEmployeeId() + " already exists");
+                    msg.get("employee.id.duplicate", employee.getEmployeeId()));
         }
 
         existing.setEmployeeId(employee.getEmployeeId());
@@ -67,7 +66,7 @@ public class EmployeeService {
 
     public void deleteEmployee(Long id) {
         if (!employeeRepository.existsById(id)) {
-            throw new NoSuchElementException("Employee not found with id: " + id);
+            throw new NoSuchElementException(msg.get("employee.not.found.id", id));
         }
         employeeRepository.deleteById(id);
     }
@@ -75,13 +74,13 @@ public class EmployeeService {
     public Employee getEmployeeById(Long id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Employee not found with id: " + id));
+                        msg.get("employee.not.found.id", id)));
     }
 
     public Employee getEmployeeByEmployeeId(String employeeId) {
         return employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Employee not found with employee ID: " + employeeId));
+                        msg.get("employee.not.found.employee.id", employeeId)));
     }
 
     public List<Employee> getAllEmployees() {
@@ -90,22 +89,18 @@ public class EmployeeService {
 
     public List<Employee> searchEmployeesByName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Search name cannot be empty");
+            throw new IllegalArgumentException(msg.get("employee.search.name.empty"));
         }
         return employeeRepository.findByNameContainingIgnoreCase(name);
     }
 
-    /**
-     * Returns employees by department name.
-     * Looks up the Department entity first, then delegates to the repository.
-     */
     public List<Employee> getEmployeesByDepartment(String departmentName) {
         if (departmentName == null || departmentName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Department cannot be empty");
+            throw new IllegalArgumentException(msg.get("employee.department.filter.empty"));
         }
         Department dept = departmentRepository.findByName(departmentName)
                 .orElseThrow(() -> new NoSuchElementException(
-                        "Department not found with name: " + departmentName));
+                        msg.get("department.not.found.name", departmentName)));
         return employeeRepository.findByDepartment(dept);
     }
 
@@ -137,28 +132,27 @@ public class EmployeeService {
 
     private void validateEmployee(Employee employee) {
         if (employee.getEmployeeId() == null || employee.getEmployeeId().trim().isEmpty())
-            throw new IllegalArgumentException("Employee ID is required");
+            throw new IllegalArgumentException(msg.get("employee.id.required"));
 
         if (employee.getName() == null || employee.getName().trim().isEmpty())
-            throw new IllegalArgumentException("Employee name is required");
+            throw new IllegalArgumentException(msg.get("employee.name.required"));
 
         if (employee.getDateOfBirth() == null)
-            throw new IllegalArgumentException("Date of birth is required");
+            throw new IllegalArgumentException(msg.get("employee.dob.required"));
 
         int age = employee.getAge();
         if (age < 18 || age > 100)
-            throw new IllegalArgumentException("Employee age must be between 18 and 100");
+            throw new IllegalArgumentException(msg.get("employee.age.invalid"));
 
         if (employee.getDepartment() == null)
-            throw new IllegalArgumentException("Department is required");
+            throw new IllegalArgumentException(msg.get("employee.department.required"));
 
-        // Verify the referenced department actually exists in the DB
         if (!departmentRepository.existsById(employee.getDepartment().getId())) {
             throw new IllegalArgumentException(
-                    "Department with id " + employee.getDepartment().getId() + " does not exist");
+                    msg.get("employee.department.not.exist", employee.getDepartment().getId()));
         }
 
         if (employee.getSalary() == null || employee.getSalary() <= 0)
-            throw new IllegalArgumentException("Salary must be greater than 0");
+            throw new IllegalArgumentException(msg.get("employee.salary.invalid"));
     }
 }

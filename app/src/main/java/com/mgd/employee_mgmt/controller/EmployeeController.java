@@ -2,117 +2,112 @@ package com.mgd.employee_mgmt.controller;
 
 import com.mgd.employee_mgmt.model.Employee;
 import com.mgd.employee_mgmt.service.EmployeeService;
+import com.mgd.employee_mgmt.util.MessageUtil;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/employees")
-@CrossOrigin(origins = "*")
+@RequestMapping("${api.employees.base}")
+@CrossOrigin(origins = "${cors.allowed.origins}")
+@PropertySource("classpath:urls.properties")
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final MessageUtil msg;
 
     @Autowired
-    public EmployeeController(EmployeeService employeeService) {
+    public EmployeeController(EmployeeService employeeService, MessageUtil msg) {
         this.employeeService = employeeService;
+        this.msg = msg;
     }
 
-    // Create new employee
+    // POST /api/employees
     @PostMapping
     public ResponseEntity<Employee> createEmployee(@Valid @RequestBody Employee employee) {
         Employee savedEmployee = employeeService.saveEmployee(employee);
         return new ResponseEntity<>(savedEmployee, HttpStatus.CREATED);
     }
 
-    // Get all employees
+    // GET /api/employees
     @GetMapping
     public ResponseEntity<List<Employee>> getAllEmployees() {
-        List<Employee> employees = employeeService.getAllEmployees();
-        return ResponseEntity.ok(employees);
+        return ResponseEntity.ok(employeeService.getAllEmployees());
     }
 
-    // Get employee by ID
+    // GET /api/employees/{id}
     @GetMapping("/{id}")
     public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id) {
-        Employee employee = employeeService.getEmployeeById(id);
-        return ResponseEntity.ok(employee);
+        return ResponseEntity.ok(employeeService.getEmployeeById(id));
     }
 
-    // Get employee by Employee ID
-    @GetMapping("/employee-id/{employeeId}")
+    // GET /api/employees/employee-id/{employeeId}
+    @GetMapping("${api.employees.by.employee.id}")
     public ResponseEntity<Employee> getEmployeeByEmployeeId(@PathVariable String employeeId) {
-        Employee employee = employeeService.getEmployeeByEmployeeId(employeeId);
-        return ResponseEntity.ok(employee);
+        return ResponseEntity.ok(employeeService.getEmployeeByEmployeeId(employeeId));
     }
 
-    // Update employee
+    // PUT /api/employees/{id}
     @PutMapping("/{id}")
     public ResponseEntity<Employee> updateEmployee(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @Valid @RequestBody Employee employee) {
-        Employee updatedEmployee = employeeService.updateEmployee(id, employee);
-        return ResponseEntity.ok(updatedEmployee);
+        return ResponseEntity.ok(employeeService.updateEmployee(id, employee));
     }
 
-    // Delete employee
+    // DELETE /api/employees/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteEmployee(id);
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Employee deleted successfully");
+        response.put("message", msg.get("employee.deleted.success"));
         return ResponseEntity.ok(response);
     }
 
-    // Search employees by name
-    @GetMapping("/search")
+    // GET /api/employees/search?name=...
+    @GetMapping("${api.employees.search}")
     public ResponseEntity<List<Employee>> searchEmployees(@RequestParam String name) {
-        List<Employee> employees = employeeService.searchEmployeesByName(name);
-        return ResponseEntity.ok(employees);
+        return ResponseEntity.ok(employeeService.searchEmployeesByName(name));
     }
 
-    // Get employees by department
-    @GetMapping("/department/{department}")
+    // GET /api/employees/department/{department}
+    @GetMapping("${api.employees.by.department}")
     public ResponseEntity<List<Employee>> getEmployeesByDepartment(@PathVariable String department) {
-        List<Employee> employees = employeeService.getEmployeesByDepartment(department);
-        return ResponseEntity.ok(employees);
+        return ResponseEntity.ok(employeeService.getEmployeesByDepartment(department));
     }
 
-    // Calculate average salary
-    @GetMapping("/statistics/average-salary")
+    // GET /api/employees/statistics/average-salary
+    @GetMapping("${api.employees.avg.salary}")
     public ResponseEntity<Map<String, Double>> getAverageSalary() {
-        double avgSalary = employeeService.calculateAverageSalary();
         Map<String, Double> response = new HashMap<>();
-        response.put("averageSalary", avgSalary);
+        response.put("averageSalary", employeeService.calculateAverageSalary());
         return ResponseEntity.ok(response);
     }
 
-    // Calculate average age
-    @GetMapping("/statistics/average-age")
+    // GET /api/employees/statistics/average-age
+    @GetMapping("${api.employees.avg.age}")
     public ResponseEntity<Map<String, Double>> getAverageAge() {
-        double avgAge = employeeService.calculateAverageAge();
         Map<String, Double> response = new HashMap<>();
-        response.put("averageAge", avgAge);
+        response.put("averageAge", employeeService.calculateAverageAge());
         return ResponseEntity.ok(response);
     }
 
-    // Get employees ordered by department
-    @GetMapping("/reports/by-department")
+    // GET /api/employees/reports/by-department
+    @GetMapping("${api.employees.report.by.department}")
     public ResponseEntity<List<Employee>> getEmployeesByDepartmentReport() {
-        List<Employee> employees = employeeService.getEmployeesOrderedByDepartment();
-        return ResponseEntity.ok(employees);
+        return ResponseEntity.ok(employeeService.getEmployeesOrderedByDepartment());
     }
 
-    // Get employees ordered by age
-    @GetMapping("/reports/by-age")
+    // GET /api/employees/reports/by-age
+    @GetMapping("${api.employees.report.by.age}")
     public ResponseEntity<List<Employee>> getEmployeesByAgeReport() {
-        List<Employee> employees = employeeService.getEmployeesOrderedByAge();
-        return ResponseEntity.ok(employees);
+        return ResponseEntity.ok(employeeService.getEmployeesOrderedByAge());
     }
 }

@@ -2,8 +2,10 @@ package com.mgd.employee_mgmt.controller;
 
 import com.mgd.employee_mgmt.model.Department;
 import com.mgd.employee_mgmt.service.DepartmentService;
+import com.mgd.employee_mgmt.util.MessageUtil;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,15 +15,18 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/departments")
-@CrossOrigin(origins = "*")
+@RequestMapping("${api.departments.base}")
+@CrossOrigin(origins = "${cors.allowed.origins}")
+@PropertySource("classpath:urls.properties")
 public class DepartmentController {
 
     private final DepartmentService departmentService;
+    private final MessageUtil msg;
 
     @Autowired
-    public DepartmentController(DepartmentService departmentService) {
+    public DepartmentController(DepartmentService departmentService, MessageUtil msg) {
         this.departmentService = departmentService;
+        this.msg = msg;
     }
 
     // POST /api/departments
@@ -44,7 +49,7 @@ public class DepartmentController {
     }
 
     // GET /api/departments/name/{name}
-    @GetMapping("/name/{name}")
+    @GetMapping("${api.departments.by.name}")
     public ResponseEntity<Department> getDepartmentByName(@PathVariable String name) {
         return ResponseEntity.ok(departmentService.getDepartmentByName(name));
     }
@@ -62,7 +67,7 @@ public class DepartmentController {
     public ResponseEntity<Map<String, String>> deleteDepartment(@PathVariable Long id) {
         departmentService.deleteDepartment(id);
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Department deleted successfully");
+        response.put("message", msg.get("department.deleted.success"));
         return ResponseEntity.ok(response);
     }
 }

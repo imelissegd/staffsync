@@ -1,11 +1,11 @@
 // config.js — Single source of truth for all URLs and UI messages.
-// Every other JS file imports from here — nothing is hardcoded elsewhere.
 
 // ── API Base URLs ─────────────────────────────────────────────────────────────
 export const API_BASE      = "http://localhost:8080";
 export const API_AUTH      = `${API_BASE}/api/auth`;
 export const API_EMPLOYEES = `${API_BASE}/api/employees`;
 export const API_DEPTS     = `${API_BASE}/api/departments`;
+export const API_USERS     = `${API_BASE}/api/users`;
 
 // ── Auth endpoint paths ───────────────────────────────────────────────────────
 export const URL_AUTH_REGISTER = `${API_AUTH}/register`;
@@ -20,6 +20,12 @@ export const PAGE_LOGIN      = "login.html";
 export const PAGE_DASHBOARD  = "index.html";
 export const PAGE_ADD_EMP    = "add-employee.html";
 export const PAGE_EDIT_EMP   = "edit-employee.html";
+export const PAGE_DEPTS      = "departments.html";
+export const PAGE_USERS      = "users.html";
+
+// ── Roles ─────────────────────────────────────────────────────────────────────
+export const ROLE_ADMIN = "ROLE_ADMIN";
+export const ROLE_USER  = "ROLE_USER";
 
 // ── UI Messages ───────────────────────────────────────────────────────────────
 export const MSG = {
@@ -49,6 +55,16 @@ export const MSG = {
     DEPT_LOAD_FAIL:             "Failed to load departments. Is the backend running?",
     DEPT_OP_FAIL:               "An error occurred. Please try again.",
 
+    // User management
+    USER_REGISTER_SUCCESS:      "User registered successfully!",
+    USER_REGISTER_FAIL:         "Failed to register user. Please try again.",
+    USER_LOAD_FAIL:             "Failed to load users. Is the backend running?",
+    USER_OP_FAIL:               "An error occurred. Please try again.",
+    USER_PROMOTE_SUCCESS:       (name) => `${name} has been promoted to Admin.`,
+    USER_DEMOTE_SUCCESS:        (name) => `${name} has been demoted to User.`,
+    USER_ACTIVATE_SUCCESS:      (name) => `${name} has been activated.`,
+    USER_DEACTIVATE_SUCCESS:    (name) => `${name} has been deactivated.`,
+
     // Dashboard / general
     DASH_LOAD_FAIL:             "Error loading employees. Is the backend running?",
     NO_EMPLOYEES_EXPORT:        "No employees to export.",
@@ -63,6 +79,9 @@ export const MSG = {
 
     // Edit page
     EDIT_NO_ID:                 "No employee ID provided.",
+
+    // Access control
+    ACCESS_DENIED:              "Access denied. Redirecting…",
 
     // Export
     EXPORT_SUCCESS:             (count) =>
